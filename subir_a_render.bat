@@ -8,17 +8,19 @@ echo    EL LOBITO - PUBLICAR NUEVA VERSION
 echo ==========================================
 echo.
 
-:: Copiar El_Lobito.html como index.html
+:: Copiar archivos fuente
 if exist "El_Lobito.html" (
     copy /y "El_Lobito.html" "index.html" >nul
     echo Copiado: El_Lobito.html -^> index.html
 )
+if exist "manifest.json"   copy /y "manifest.json"   "manifest.json"   >nul
+if exist "icon.svg"        copy /y "icon.svg"        "icon.svg"        >nul
 
 :: Actualizar VERSION con fecha y hora actuales
 for /f %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmm"') do set NEWVER=%%d
 echo Actualizando VERSION a: %NEWVER%
 powershell -NoProfile -Command ^
-  "(Get-Content 'index.html' -Encoding UTF8) -replace 'const VERSION = ""[^""]*""', 'const VERSION = ""%NEWVER%""' | Set-Content 'index.html' -Encoding UTF8"
+  "(Get-Content 'index.html' -Encoding UTF8) -replace 'const VERSION = ""[\w-]+""', 'const VERSION = ""%NEWVER%""' | Set-Content 'index.html' -Encoding UTF8"
 
 echo.
 echo [1/3] Preparando archivos...
