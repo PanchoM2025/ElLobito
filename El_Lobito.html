@@ -295,7 +295,7 @@ input[type="number"] { -moz-appearance:textfield; }
   </div>
 </div>
 <script>
-const VERSION = "20260811-010";
+const VERSION = "20260811-012";
 const COURSES = {
   "CNSI":[[4,3],[3,15],[4,17],[4,9],[4,5],[5,1],[4,7],[3,13],[4,11],[4,14],[4,6],[5,10],[4,12],[3,2],[5,8],[4,4],[3,18],[4,16]],
   "Pilara":[[5,3],[3,13],[4,5],[4,11],[4,15],[4,9],[5,1],[3,17],[4,7],[4,12],[3,18],[4,6],[3,14],[5,2],[4,16],[4,10],[4,8],[5,4]],
@@ -415,12 +415,32 @@ function onScore(h,p,val){scores[h][p]=val.trim().toUpperCase();recalcAll();save
 function toggleTeam(h,p){
   teams[h][p]=!teams[h][p];const btn=document.getElementById(`cb_${h}_${p}`);
   if(teams[h][p]){btn.className='chk on';btn.textContent='✓';}else{btn.className='chk off';btn.textContent='';}
-  recalcAll();saveState();
+  recalcAll();saveState();checkBestNet(h);
+}
+function checkBestNet(h){
+  if(!course[h])return;const[,hcpH]=course[h];
+  const teamA=[],teamB=[];for(let p=0;p<5;p++)(teams[h][p]?teamA:teamB).push(p);
+  if(teamA.length===0||teamB.length===0)return;
+  const nets=[];let allOk=true;
+  for(let p=0;p<5;p++){const raw=(scores[h][p]||'').trim().toUpperCase();if(raw===''||raw==='X'){allOk=false;break;}const g=parseInt(raw);if(isNaN(g)||g<=0){allOk=false;break;}nets.push(g-strokesTeam(playerHcps[p],hcpH));}
+  if(!allOk)return;
+  let bestNet=Infinity,bestP=-1;
+  for(let p=0;p<5;p++){if(nets[p]<bestNet){bestNet=nets[p];bestP=p;}}
+  if(bestP>=0&&!teams[h][bestP]){
+    alert(`⚠️ OJO: ${playerNames[bestP]} tiene el mejor score neto (${bestNet}) y está en el equipo contrario.`);
+  }
 }
 function calcHoleResult(h){
   if(!course[h])return null;const[,hcpH]=course[h];
   const teamA=[],teamB=[];for(let p=0;p<5;p++)(teams[h][p]?teamA:teamB).push(p);
-  if(teamA.length===0||teamB.length===0)return null;
+  if(teamA.length===0){
+    /* nadie eligió compañero → verificar si los 5 tienen score; si sí, es empate automático */
+    const nets5=[];let allOk=true;
+    for(let p=0;p<5;p++){const raw=(scores[h][p]||'').trim().toUpperCase();if(raw===''||raw==='X'){allOk=false;break;}const g=parseInt(raw);if(isNaN(g)||g<=0){allOk=false;break;}nets5.push(g-strokesTeam(playerHcps[p],hcpH));}
+    if(allOk)return{empate:true,nets:nets5};
+    return null;
+  }
+  if(teamB.length===0)return null;
   const nets=[];
   for(let p=0;p<5;p++){const raw=(scores[h][p]||'').trim().toUpperCase();
     if(raw===''){nets.push(null);continue;}if(raw==='X'){nets.push(Infinity);continue;}
