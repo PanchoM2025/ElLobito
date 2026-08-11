@@ -64,7 +64,24 @@ input.hv:focus { outline:2px solid #ffd700; }
 .btn-reset { flex:1; padding:9px 8px; background:#3a1a1a; color:#f08080; font-size:13px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; touch-action:manipulation; }
 .btn-reset:active { background:#5a2a2a; }
 #save-toast { display:none; text-align:center; color:#90ee90; font-size:13px; font-weight:bold; margin:-8px 0 10px; }
-.btn-start { width:100%; padding:15px; background:#2d6a2d; color:#ffd700; font-size:18px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; letter-spacing:1px; touch-action:manipulation; margin-top:8px; }
+.btn-start { padding:15px 22px; background:#2d6a2d; color:#ffd700; font-size:18px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; letter-spacing:1px; touch-action:manipulation; margin-top:0; white-space:nowrap; }
+/* ── FILA INFERIOR: INSTRUCCIONES + COMENZAR ── */
+.btn-bottom-row { display:flex; gap:8px; align-items:stretch; margin-top:8px; }
+.btn-instrucciones { flex:1; padding:9px 8px; background:#1a3a5a; color:#87ceeb; font-size:13px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; touch-action:manipulation; -webkit-user-select:none; user-select:none; }
+.btn-instrucciones:active { background:#254d7a; }
+/* ── MODAL INSTRUCCIONES ── */
+#modal-instrucciones { display:none; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.80); justify-content:center; align-items:center; padding:16px; }
+#modal-instrucciones.open { display:flex; }
+.instr-box { background:#0d3318; border:1px solid #3d8a3d; border-radius:12px; padding:24px 20px; max-width:420px; width:100%; max-height:88vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.instr-box h2 { color:#ffd700; font-size:17px; text-align:center; margin-bottom:14px; letter-spacing:.5px; }
+.instr-box p { color:#d8f0d8; font-size:14px; line-height:1.65; margin-bottom:10px; }
+.instr-box .i-score { background:#1a472a; border-radius:8px; padding:10px 14px; margin:10px 0; }
+.instr-box .i-score-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:13px; color:#a8d8a8; }
+.instr-box .i-val { color:#ffd700; font-weight:bold; }
+.instr-box .i-note { color:#87ceeb; font-size:13px; line-height:1.6; margin-bottom:6px; }
+.instr-box .i-note strong { color:#ffd700; }
+.instr-close { display:block; margin:18px auto 0; padding:10px 32px; background:#2d6a2d; color:#fff; font-size:15px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; touch-action:manipulation; }
+.instr-close:active { background:#3d8a3d; }
 #game { display:none; padding:6px 4px 90px; }
 #game-title { font-size:14px; color:#ffd700; text-align:center; margin-bottom:4px; letter-spacing:.5px; }
 .grid-hint  { text-align:center; font-size:11px; color:#4a7a4a; margin-bottom:6px; }
@@ -168,8 +185,35 @@ input[type="number"] { -moz-appearance:textfield; }
     <button class="btn-reset" onclick="resetCourse()">&#x21A9; Restablecer Hcp</button>
   </div>
   <div id="save-toast">&#x2705; Guardado</div>
-  <button class="btn-start" onclick="startGame()">COMENZAR &nbsp;&#9658;</button>
+  <div class="btn-bottom-row">
+    <button class="btn-instrucciones" onclick="openInstructions()">&#x1F4CB; Instrucciones</button>
+    <button class="btn-start" onclick="startGame()">COMENZAR &nbsp;&#9658;</button>
+  </div>
 </div>
+<!-- ── MODAL INSTRUCCIONES ── -->
+<div id="modal-instrucciones" onclick="if(event.target===this)closeInstructions()">
+  <div class="instr-box">
+    <h2>&#x1F43A; El Lobito &mdash; C&#xF3;mo jugar</h2>
+    <p>Juego para <strong>5 jugadores</strong>.</p>
+    <p>En cada hoyo, el jugador que tiene el turno de elecci&#xF3;n pega primero y observa los tiros de los otros cuatro.</p>
+    <p>Despu&#xE9;s de cada tiro puede elegir a ese jugador como compa&#xF1;ero. <strong style="color:#ffd700">Si lo deja pasar, no puede volver a elegirlo.</strong></p>
+    <p>Si elige compa&#xF1;ero juegan <strong style="color:#ffd700">2 vs. 3</strong>. Gana el hoyo el equipo cuyo jugador obtiene el <strong>menor score NETO</strong>, calculado con el <strong>85% del HCP</strong>.</p>
+    <div class="i-score">
+      <p style="color:#a8d8a8;font-size:12px;margin-bottom:8px;font-weight:bold">&#x1F4CA; PUNTUACI&#xD3;N</p>
+      <div class="i-score-row"><span>Pareja (2 jugadores)</span><span class="i-val">&#xB1;3 c/u</span></div>
+      <div class="i-score-row"><span>Tr&#xED;o (3 jugadores)</span><span class="i-val">&#x2213;2 c/u</span></div>
+      <div style="border-top:1px solid #3d8a3d;margin:8px 0"></div>
+      <div class="i-score-row"><span>&#x1F43A; LOBITO (solo vs. 4, doble)</span><span></span></div>
+      <div class="i-score-row" style="padding-left:12px"><span>El Lobito</span><span class="i-val">&#xB1;12</span></div>
+      <div class="i-score-row" style="padding-left:12px"><span>Resto</span><span class="i-val">&#x2213;3 c/u</span></div>
+    </div>
+    <p class="i-note"><strong>Empate:</strong> se acumulan 6 puntos para el hoyo siguiente.</p>
+    <p class="i-note"><strong>&#x1F43A; Lobito + empate acumulado:</strong> duplica tambi&#xE9;n los puntos acumulados.</p>
+    <p class="i-note"><strong>Turno de elecci&#xF3;n:</strong> rota entre los 5 jugadores en cada hoyo.</p>
+    <button class="instr-close" onclick="closeInstructions()">Cerrar</button>
+  </div>
+</div>
+
 <div id="game">
   <p id="game-title">🐺 El Lobito</p>
   <p class="grid-hint">Score + ✓ para marcar equipo en cada hoyo</p>
@@ -392,6 +436,8 @@ function openModal(mode){
 function closeModal(){document.getElementById('modal').classList.remove('open');}
 function confirmModal(){const val=parseFloat(document.getElementById('modal-input').value);if(isNaN(val)||val<=0){alert('Ingresá un valor mayor a 0.');return;}closeModal();if(modalMode==='calc')buildResults(val);else buildH19(val);}
 document.getElementById('modal-input').addEventListener('keydown',e=>{if(e.key==='Enter')confirmModal();});
+function openInstructions(){document.getElementById('modal-instrucciones').classList.add('open');}
+function closeInstructions(){document.getElementById('modal-instrucciones').classList.remove('open');}
 function showGame(){document.getElementById('results').style.display='none';document.getElementById('game').style.display='block';}
 function newGame(){
   clearState();playerNames=['','','','',''];playerHcps=[0,0,0,0,0];
