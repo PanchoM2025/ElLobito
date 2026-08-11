@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -15,8 +15,6 @@
   document.addEventListener('DOMContentLoaded', function() {
     document.title = '🐺 El Lobito';
     document.getElementById('main-title').textContent = '🐺 El Lobito';
-
-    // Chequeo de versión
     fetch(location.pathname + '?_nc=' + Date.now())
       .then(r => r.text())
       .then(html => {
@@ -99,8 +97,8 @@ tr.rr-h19  td { background:#3a2800; color:#ffd700; font-weight:bold; border-top:
 <body>
 
 <div id="setup">
-  <h1 id="main-title">🐺 El Lobito</h1>
-  <p class="subtitle">Golf · 5 jugadores · 18 hoyos</p>
+  <h1 id="main-title">El Lobito</h1>
+  <p class="subtitle">Golf &middot; 5 jugadores &middot; 18 hoyos</p>
   <div id="player-inputs">
     <div class="player-row"><label>Jugador 1:</label><input type="text" id="pn0" value="A" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
     <div class="player-row"><label>Jugador 2:</label><input type="text" id="pn1" value="B" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
@@ -108,35 +106,35 @@ tr.rr-h19  td { background:#3a2800; color:#ffd700; font-weight:bold; border-top:
     <div class="player-row"><label>Jugador 4:</label><input type="text" id="pn3" value="D" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
     <div class="player-row"><label>Jugador 5:</label><input type="text" id="pn4" value="E" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
   </div>
-  <button class="btn-start" onclick="startGame()">COMENZAR &nbsp;▶</button>
+  <button class="btn-start" onclick="startGame()">COMENZAR &#9658;</button>
 </div>
 
 <div id="game">
-  <p id="game-title">🐺 El Lobito</p>
+  <p id="game-title">El Lobito</p>
   <div class="grid-wrap">
     <table class="grid" id="grid-tbl"></table>
   </div>
   <div class="btn-bar">
     <button class="btn-calc"    onclick="openModal('calc')">CALCULAR</button>
-    <button class="btn-h19"     onclick="openModal('h19')">HOYO 19 🍺</button>
+    <button class="btn-h19"     onclick="openModal('h19')">HOYO 19</button>
     <button class="btn-limpiar" onclick="limpiar()">LIMPIAR</button>
-    <button class="btn-nueva"   onclick="newGame()">↩ NUEVA</button>
+    <button class="btn-nueva"   onclick="newGame()">NUEVA</button>
   </div>
 </div>
 
 <div id="results">
-  <p id="res-title">📊 Resultados — El Lobito</p>
+  <p id="res-title">Resultados - El Lobito</p>
   <div class="grid-wrap">
     <table class="res" id="res-tbl"></table>
   </div>
   <div id="h19-section" style="display:none" class="sec-sep">
-    <p class="sec-title">🍺 Hoyo 19</p>
+    <p class="sec-title">Hoyo 19</p>
     <div class="grid-wrap">
       <table class="res" id="h19-tbl"></table>
     </div>
   </div>
-  <button class="btn-volver"    onclick="showGame()">◀ &nbsp;Volver a la tarjeta</button>
-  <button class="btn-nueva-res" onclick="newGame()">↩ &nbsp;Nueva Partida</button>
+  <button class="btn-volver"    onclick="showGame()">Volver a la tarjeta</button>
+  <button class="btn-nueva-res" onclick="newGame()">Nueva Partida</button>
 </div>
 
 <div class="modal-bg" id="modal">
@@ -152,7 +150,7 @@ tr.rr-h19  td { background:#3a2800; color:#ffd700; font-weight:bold; border-top:
 </div>
 
 <script>
-const VERSION = 20260810-2145";
+const VERSION = "20260810-003";
 
 const BASE_WIN  = [0, 12,  6,  4,  3];
 const BASE_LOSE = [0, -3, -4, -6, -12];
@@ -256,7 +254,7 @@ function buildGrid() {
 function toggle(h, p) { sel[h][p] = !sel[h][p]; refreshGrid(); }
 
 function limpiar() {
-  if (!confirm('¿Limpiar toda la tarjeta?')) return;
+  if (!confirm('Limpiar toda la tarjeta?')) return;
   sel = Array.from({length:18}, () => [false,false,false,false,false]);
   refreshGrid();
 }
@@ -279,10 +277,10 @@ function refreshGrid() {
       if (sel[h][p]) btn.classList.add(isLobito ? 'lobito' : 'on');
     }
     const ind = document.getElementById('ind_'+h);
-    if (isEmpate && numWin === 0)        ind.innerHTML = '<span class="badge-emp">⇒</span>';
-    else if (isLobito && mult > 1)       ind.innerHTML = '<span class="badge-mult">×'+mult+'</span><span class="badge-lob"> 🐺</span>';
-    else if (isLobito)                   ind.innerHTML = '<span class="badge-lob">🐺</span>';
-    else if (mult > 1 && !isEmpate)      ind.innerHTML = '<span class="badge-mult">×'+mult+'</span>';
+    if (isEmpate && numWin === 0)        ind.innerHTML = '<span class="badge-emp">=&gt;</span>';
+    else if (isLobito && mult > 1)       ind.innerHTML = '<span class="badge-mult">x'+mult+'</span> W';
+    else if (isLobito)                   ind.innerHTML = 'W';
+    else if (mult > 1 && !isEmpate)      ind.innerHTML = '<span class="badge-mult">x'+mult+'</span>';
     else                                 ind.innerHTML = '';
     if (!isEmpate) {
       const wp = BASE_WIN[numWin]  * mult;
@@ -337,13 +335,13 @@ function buildResults(precio) {
     const tr = document.createElement('tr');
     tr.className = d.isEmpate ? 'rr-emp' : h%2===0 ? 'rr-even' : 'rr-odd';
     let lbl = String(h+1);
-    if (d.isLobito) lbl += ' 🐺';
-    if (d.mult > 1) lbl += '<br><small style="color:#e65c00">×'+d.mult+'</small>';
-    if (d.isEmpate) lbl += '<br><small style="color:#6699ff">⇒</small>';
+    if (d.isLobito) lbl += ' W';
+    if (d.mult > 1) lbl += '<br><small style="color:#e65c00">x'+d.mult+'</small>';
+    if (d.isEmpate) lbl += '<br><small style="color:#6699ff">=&gt;</small>';
     let html = '<td>'+lbl+'</td>';
     d.pts.forEach(v => {
       const cls = v > 0 ? 'rv-pos' : v < 0 ? 'rv-neg' : '';
-      const txt = v === 0 ? '—' : v > 0 ? '+'+v : String(v);
+      const txt = v === 0 ? '-' : v > 0 ? '+'+v : String(v);
       html += '<td class="'+cls+'">'+txt+'</td>';
     });
     tr.innerHTML = html;
@@ -360,7 +358,7 @@ function buildResults(precio) {
   tbody.appendChild(trTot);
   const trPrice = document.createElement('tr');
   trPrice.className = 'rr-price';
-  let priceHtml = '<td>$ (×'+precio.toLocaleString('es-AR')+')</td>';
+  let priceHtml = '<td>$ (x'+precio.toLocaleString('es-AR')+')</td>';
   totals.forEach(v => {
     const money = Math.round(v * precio);
     const cls   = money > 0 ? 'rv-pos' : money < 0 ? 'rv-neg' : '';
@@ -392,7 +390,7 @@ function buildH19(monto) {
     html += '<td class="'+cls+'">'+(v > 0 ? '+'+v : v)+'</td>';
   });
   html += '</tr><tr class="rr-h19"><td>Paga</td>';
-  pagos.forEach(p => { html += p === 0 ? '<td>🏆</td>' : '<td>$'+p.toLocaleString('es-AR')+'</td>'; });
+  pagos.forEach(p => { html += p === 0 ? '<td>1ro</td>' : '<td>$'+p.toLocaleString('es-AR')+'</td>'; });
   html += '</tr></tbody>';
   tbl.innerHTML = html;
   document.getElementById('h19-section').style.display = 'block';
@@ -406,12 +404,12 @@ function openModal(mode) {
   const inp = document.getElementById('modal-input');
   if (mode === 'calc') {
     document.getElementById('modal-title').textContent = 'Precio por unidad';
-    document.getElementById('modal-desc').textContent  = '¿Cuánto vale cada unidad?';
+    document.getElementById('modal-desc').textContent  = 'Cuanto vale cada unidad?';
     inp.placeholder = 'Ej: 1000';
     inp.value = precioUnidad > 0 ? precioUnidad : '';
   } else {
-    document.getElementById('modal-title').textContent = '🍺 Hoyo 19';
-    document.getElementById('modal-desc').textContent  = 'Monto total a repartir (el 1° no paga):';
+    document.getElementById('modal-title').textContent = 'Hoyo 19';
+    document.getElementById('modal-desc').textContent  = 'Monto total a repartir (el 1ro no paga):';
     inp.placeholder = 'Ej: 5000';
     inp.value = '';
   }
@@ -423,7 +421,7 @@ function closeModal() { document.getElementById('modal').classList.remove('open'
 
 function confirmModal() {
   const val = parseFloat(document.getElementById('modal-input').value);
-  if (isNaN(val) || val <= 0) { alert('Ingresá un valor válido mayor a 0.'); return; }
+  if (isNaN(val) || val <= 0) { alert('Ingresa un valor valido mayor a 0.'); return; }
   closeModal();
   if (modalMode === 'calc') buildResults(val);
   else                      buildH19(val);
