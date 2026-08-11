@@ -1,0 +1,439 @@
+from __future__ import annotations
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+
+from gui.widgets.checkbox_dropdown import CheckboxDropdown
+
+
+MESES_ES = {
+    "01": "Ene", "02": "Feb", "03": "Mar", "04": "Abr",
+    "05": "May", "06": "Jun", "07": "Jul", "08": "Ago",
+    "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dic",
+}
+
+
+def _fmt_mes(ym: str) -> str:
+    """'2026-02' → 'Feb 2026'"""
+    try:
+        y, m = ym.split("-")
+        return f"{MESES_ES.get(m, m)} {y}"
+    except Exception:
+        return ym
+
+
+def _mes_header(ym: str) -> str:
+    """'2025-12' → 'Dic25'"""
+    try:
+        y, m = ym.split("-")
+        return f"{MESES_ES.get(m, m)}{y[2:]}"
+    except Exception:
+        return ym
+
+
+def _parse_mes(display: str) -> str | None:
+    """'Feb 2026' → '2026-02'"""
+    rev = {v: k for k, v in MESES_ES.items()}
+    try:
+        mes_str, year_str = display.split()
+        return f"{year_str}-{rev[mes_str]}"
+    except Exception:
+        return None
+
+
+def _fmt_num(val, decimals: int = 0) -> str:
+    try:
+        return f"{float(val):,.{decimals}f}"
+    except Exception:
+        return "—"
+
+
+def _export_val(s):
+    """Convierte string formateado a float para Excel. Textos y '—' quedan como string."""
+    if s in (None, "", "—"):
+        return ""
+    clean = str(s).replace(",", "").replace("+", "").strip()
+    try:
+        return float(clean)
+    except ValueError:
+        return str(s)
+
+
+class MesAMesPage(tk.Frame):
+    """
+    Reportes → Mes a Mes
+    Tabla pivotada: filas = portfolios, columnas = meses del período.
+    Última fila = Total consolidado por mes.
+    """
+
+    def __init__(self, parent, db, **kwargs):
+        super().__init__(parent, bg="white", **kwargs)
+        self.db = db
+        self._portfolio_map: dict[str, int] = {}
+        self._banco_map: dict[str, int] = {}
+        self._clase_values: list[str] = []
+        self._meses: list[str] = []
+
+        # Sorting state
+        self._pfdata: dict[tuple, dict[str, float]] = {}
+        self._meses_data: list[str] = []
+        self._sort_col: str  = ""
+        self._sort_rev: bool = False
+
+        self._build_filtros()
+        self._build_tree_area()
+        self._load_filtros()
+
+    # ── Barra de filtros (fija) ────────────────────────────────────────────────
+
+    def _build_filtros(self) -> None:
+        ctrl = tk.Frame(self, bg="#f0f4f8", bd=1, relief="flat")
+        ctrl.pack(fill=tk.X, padx=20, pady=(4, 8), ipady=6)
+
+        def _lbl(text: str) -> None:
+            tk.Label(ctrl, text=text, bg="#f0f4f8",
+                     font=("Segoe UI", 9)).pack(side=tk.LEFT, padx=(12, 2))
+
+        # Botones RIGHT primero
+        tk.Button(ctrl, text="Aplicar", command=self._aplicar,
+                  padx=10).pack(side=tk.RIGHT, padx=(0, 12))
+        tk.Button(ctrl, text="Exportar", command=self._exportar,
+                  padx=10).pack(side=tk.RIGHT, padx=(0, 4))
+
+        # Banco
+        _lbl("Banco:")
+        self._var_banco = tk.StringVar(value="Todos")
+        self._cb_banco = ttk.Combobox(ctrl, textvariable=self._var_banco,
+                                      width=10, state="readonly")
+        self._cb_banco.pack(side=tk.LEFT)
+
+        # Portfolio (multiselect)
+        _lbl("Portfolio:")
+        self._cb_portfolio = CheckboxDropdown(ctrl, width=16, bg="#f0f4f8")
+        self._cb_portfolio.pack(side=tk.LEFT)
+
+        # Gestión
+        _lbl("Gestión:")
+        self._var_gestion = tk.StringVar(value="Todos")
+        self._cb_gestion = ttk.Combobox(ctrl, textvariable=self._var_gestion,
+                                        width=10, state="readonly")
+        self._cb_gestion.pack(side=tk.LEFT)
+
+        # Clase
+        _lbl("Clase:")
+        self._var_clase = tk.StringVar(value="Todas")
+        self._cb_clase = ttk.Combobox(ctrl, textvariable=self._var_clase,
+                                      width=14, state="readonly")
+        self._cb_clase.pack(side=tk.LEFT)
+
+        # Desde / Hasta
+        _lbl("Desde:")
+        self._var_desde = tk.StringVar()
+        self._cb_desde = ttk.Combobox(ctrl, textvariable=self._var_desde,
+                                      width=8, state="readonly")
+        self._cb_desde.pack(side=tk.LEFT)
+
+        _lbl("Hasta:")
+        self._var_hasta = tk.StringVar()
+        self._cb_hasta = ttk.Combobox(ctrl, textvariable=self._var_hasta,
+                                      width=8, state="readonly")
+        self._cb_hasta.pack(side=tk.LEFT)
+
+    # ── Área del treeview (se recrea en cada Aplicar) ─────────────────────────
+
+    def _build_tree_area(self) -> None:
+        self._tree_container = tk.Frame(self, bg="white")
+        self._tree_container.pack(fill=tk.BOTH, expand=True,
+                                  padx=(20, 10), pady=(0, 20))
+        self.tree: ttk.Treeview | None = None
+
+    def _rebuild_tree(self, meses: list[str]) -> None:
+        """Destruye el treeview anterior y crea uno nuevo con columnas dinámicas."""
+        for w in self._tree_container.winfo_children():
+            w.destroy()
+
+        # Columnas: fijas + un id por mes + % variación
+        fixed  = ("banco", "portfolio", "gestion")
+        m_cols = tuple(f"m_{m}" for m in meses)
+        cols   = fixed + m_cols + ("pct",)
+
+        self.tree = ttk.Treeview(
+            self._tree_container, columns=cols,
+            show="headings", height=22
+        )
+
+        # Encabezados fijos (con sorting)
+        for col_id, label in (("banco", "Banco"), ("portfolio", "Portfolio"), ("gestion", "Gestión")):
+            self.tree.heading(col_id, text=label,
+                              command=lambda c=col_id: self._treeview_sort(c))
+        self.tree.column("banco",     width=110, anchor="w",      stretch=False)
+        self.tree.column("portfolio", width=160, anchor="w",      stretch=False)
+        self.tree.column("gestion",   width=100, anchor="center", stretch=False)
+
+        # Encabezados de meses — todos el mismo ancho, ninguno se estira
+        for m in meses:
+            col_id = f"m_{m}"
+            self.tree.heading(col_id, text=_mes_header(m))
+            self.tree.column(col_id, width=90, anchor="e", stretch=False)
+
+        # Columna % variación (con sorting)
+        self.tree.heading("pct", text="% Var.",
+                          command=lambda: self._treeview_sort("pct"))
+        self.tree.column("pct", width=75, anchor="e", stretch=False)
+
+        # Tags
+        self.tree.tag_configure("total",
+                                background="#c8ddf0",
+                                font=("Segoe UI", 10, "bold"))
+        self.tree.tag_configure("alt", background="#f5f9fd")
+
+        # Scrollbars
+        vsb = ttk.Scrollbar(self._tree_container,
+                            orient=tk.VERTICAL, command=self.tree.yview)
+        hsb = ttk.Scrollbar(self._tree_container,
+                            orient=tk.HORIZONTAL, command=self.tree.xview)
+        self.tree.configure(yscrollcommand=vsb.set,
+                            xscrollcommand=hsb.set)
+
+        hsb.pack(side=tk.BOTTOM, fill=tk.X)
+        vsb.pack(side=tk.RIGHT,  fill=tk.Y)
+        self.tree.pack(fill=tk.BOTH, expand=True)
+
+    # ── Filtros ────────────────────────────────────────────────────────────────
+
+    def _load_filtros(self) -> None:
+        try:
+            filtros = self.db.get_analisis_filtros()
+        except Exception:
+            return
+
+        self._portfolio_map = {r["portfolio_codigo"]: r["portfolio_id"]
+                               for r in filtros["portfolios"]}
+        self._cb_portfolio.set_values(list(self._portfolio_map.keys()))
+
+        self._banco_map = {r["nombre"]: r["banco_id"] for r in filtros["bancos"]}
+        self._cb_banco["values"] = ["Todos"] + list(self._banco_map.keys())
+
+        self._cb_gestion["values"] = ["Todos"] + filtros["gestiones"]
+
+        self._clase_values = filtros.get("tipos_activo", [])
+        self._cb_clase["values"] = ["Todas"] + self._clase_values
+
+        self._meses = filtros["meses"]   # DESC
+        display = [_fmt_mes(m) for m in self._meses]
+        self._cb_desde["values"] = display
+        self._cb_hasta["values"] = display
+        if len(display) >= 2:
+            self._cb_desde.current(len(display) - 1)   # más antiguo
+            self._cb_hasta.current(0)                   # más reciente
+        elif display:
+            self._cb_desde.current(0)
+            self._cb_hasta.current(0)
+
+    # ── Aplicar ────────────────────────────────────────────────────────────────
+
+    def _aplicar(self) -> None:
+        # Resolver período
+        start_ym = _parse_mes(self._var_desde.get())
+        end_ym   = _parse_mes(self._var_hasta.get())
+        if not start_ym or not end_ym:
+            messagebox.showwarning("Sin mes", "Seleccioná Desde y Hasta.")
+            return
+        if start_ym > end_ym:
+            start_ym, end_ym = end_ym, start_ym
+
+        # Filtros
+        sel_portfolios = self._cb_portfolio.get_selected()
+        portfolio_ids = (
+            [self._portfolio_map[c] for c in sel_portfolios
+             if c in self._portfolio_map]
+            if sel_portfolios is not None else None
+        )
+        banco_id = self._banco_map.get(self._var_banco.get())
+        gestion  = self._var_gestion.get()
+        if gestion == "Todos":
+            gestion = None
+        clase = self._var_clase.get()
+        if clase == "Todas":
+            clase = None
+
+        try:
+            rows = self.db.get_mes_a_mes_data(
+                period_start=start_ym,
+                period_end=end_ym,
+                portfolio_ids=portfolio_ids,
+                banco_id=banco_id,
+                gestion=gestion,
+                clase=clase,
+            )
+        except Exception as exc:
+            messagebox.showerror("Error", str(exc))
+            return
+
+        if not rows:
+            messagebox.showwarning("Sin datos",
+                                   "No hay datos para el período seleccionado.")
+            return
+
+        self._poblar(rows)
+
+    def _poblar(self, rows: list[dict]) -> None:
+        # ── Pivot en Python ───────────────────────────────────────────────────
+        meses: list[str] = sorted({r["mes"] for r in rows})
+
+        # {(banco, portfolio_codigo, gestion): {mes: valor_total}}
+        pfdata: dict[tuple, dict[str, float]] = {}
+        for r in rows:
+            key = (r["banco"], r["portfolio_codigo"], r["gestion"] or "")
+            pfdata.setdefault(key, {})[r["mes"]] = float(r["valor_total"] or 0)
+
+        # Guardar para re-sort
+        self._pfdata     = pfdata
+        self._meses_data = meses
+        self._sort_col   = ""
+        self._sort_rev   = False
+
+        # Reconstruir treeview con las columnas del período
+        self._rebuild_tree(meses)
+        self._render_rows(sorted(pfdata.items(), key=lambda x: x[0]))
+
+    def _render_rows(self, sorted_items) -> None:
+        """Limpia el tree y renderiza filas + total."""
+        meses = self._meses_data
+
+        # Borrar todo excepto encabezados
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        totales: dict[str, float] = {m: 0.0 for m in meses}
+
+        def _pct_var(v_ini: float, v_fin: float) -> str:
+            if v_ini:
+                return f"{(v_fin - v_ini) / v_ini * 100:+.2f}%"
+            return "—"
+
+        for i, (key, vals) in enumerate(sorted_items):
+            banco, pf_cod, gestion = key
+            tag = "alt" if i % 2 else ""
+
+            row_vals: list = [banco, pf_cod, gestion]
+            for m in meses:
+                v = vals.get(m, 0.0)
+                totales[m] += v
+                row_vals.append(_fmt_num(v) if v else "—")
+
+            v_ini = vals.get(meses[0],  0.0)
+            v_fin = vals.get(meses[-1], 0.0)
+            row_vals.append(_pct_var(v_ini, v_fin))
+
+            self.tree.insert("", tk.END, values=row_vals, tags=(tag,))
+
+        # ── Fila "Total consolidado" (siempre al final) ───────────────────────
+        total_row: list = ["TOTAL CONSOLIDADO", "", ""]
+        for m in meses:
+            total_row.append(_fmt_num(totales[m]) if totales[m] else "—")
+        total_row.append(_pct_var(totales.get(meses[0], 0.0),
+                                  totales.get(meses[-1], 0.0)))
+        self.tree.insert("", tk.END, values=total_row, tags=("total",))
+
+    def _treeview_sort(self, col: str) -> None:
+        """Ordena la tabla por la columna indicada. Segundo click invierte."""
+        if not self._pfdata:
+            return
+
+        # Alternar dirección si es la misma columna
+        if self._sort_col == col:
+            self._sort_rev = not self._sort_rev
+        else:
+            self._sort_col = col
+            self._sort_rev = False
+
+        meses = self._meses_data
+
+        def _pct_val(vals: dict) -> float:
+            if not meses:
+                return 0.0
+            v_ini = vals.get(meses[0],  0.0)
+            v_fin = vals.get(meses[-1], 0.0)
+            return (v_fin - v_ini) / v_ini * 100 if v_ini else 0.0
+
+        def sort_key(item):
+            key, vals = item
+            banco, pf_cod, gestion = key
+            if col == "banco":
+                return banco.lower()
+            if col == "portfolio":
+                return pf_cod.lower()
+            if col == "gestion":
+                return gestion.lower()
+            if col == "pct":
+                return _pct_val(vals)
+            return ""
+
+        sorted_items = sorted(self._pfdata.items(),
+                              key=sort_key, reverse=self._sort_rev)
+
+        self._render_rows(sorted_items)
+
+        # Actualizar indicador ▲▼ en encabezados
+        labels = {"banco": "Banco", "portfolio": "Portfolio",
+                  "gestion": "Gestión", "pct": "% Var."}
+        for c, lbl in labels.items():
+            indicator = (" ▼" if self._sort_rev else " ▲") if c == col else ""
+            self.tree.heading(c, text=lbl + indicator)
+
+    # ── Exportar ───────────────────────────────────────────────────────────────
+
+    def _exportar(self) -> None:
+        from tkinter import filedialog
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, PatternFill, Alignment
+        except ImportError:
+            messagebox.showerror("Error",
+                                 "Se requiere openpyxl.\nEjecutá: pip install openpyxl")
+            return
+
+        if self.tree is None or not self.tree.get_children():
+            messagebox.showwarning("Sin datos", "Aplicá primero el reporte.")
+            return
+
+        path = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel", "*.xlsx")],
+            title="Exportar Mes a Mes a Excel",
+        )
+        if not path:
+            return
+
+        cols    = self.tree["columns"]
+        headers = [self.tree.heading(c)["text"] for c in cols]
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Mes a Mes"
+
+        ws.append(headers)
+        for cell in ws[1]:
+            cell.font      = Font(bold=True, color="FFFFFF")
+            cell.fill      = PatternFill("solid", fgColor="2E75B6")
+            cell.alignment = Alignment(horizontal="center")
+
+        for item in self.tree.get_children():
+            ws.append([_export_val(v) for v in self.tree.item(item, "values")])
+
+        # Formato miles en celdas numéricas
+        for row in ws.iter_rows(min_row=2):
+            for cell in row:
+                if isinstance(cell.value, float):
+                    cell.number_format = "#,##0"
+
+        for col in ws.columns:
+            max_len = max((len(str(cell.value or "")) for cell in col), default=8)
+            ws.column_dimensions[col[0].column_letter].width = min(max_len + 2, 30)
+
+        try:
+            wb.save(path)
+            messagebox.showinfo("Exportado", f"Guardado en:\n{path}")
+        except Exception as exc:
+            messagebox.showerror("Error al guardar", str(exc))

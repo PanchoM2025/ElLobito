@@ -101,7 +101,13 @@ tr.rr-h19  td { background:#3a2800; color:#ffd700; font-weight:bold; border-top:
 <div id="setup">
   <h1 id="main-title">🐺 El Lobito</h1>
   <p class="subtitle">Golf · 5 jugadores · 18 hoyos</p>
-  <div id="player-inputs"></div>
+  <div id="player-inputs">
+    <div class="player-row"><label>Jugador 1:</label><input type="text" id="pn0" value="A" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
+    <div class="player-row"><label>Jugador 2:</label><input type="text" id="pn1" value="B" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
+    <div class="player-row"><label>Jugador 3:</label><input type="text" id="pn2" value="C" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
+    <div class="player-row"><label>Jugador 4:</label><input type="text" id="pn3" value="D" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
+    <div class="player-row"><label>Jugador 5:</label><input type="text" id="pn4" value="E" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
+  </div>
   <button class="btn-start" onclick="startGame()">COMENZAR &nbsp;▶</button>
 </div>
 
@@ -201,16 +207,6 @@ function loadState() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveState(); });
 window.addEventListener('pagehide', saveState);
 
-(function initSetup() {
-  const cont = document.getElementById('player-inputs');
-  playerNames.forEach((n, i) => {
-    const row = document.createElement('div');
-    row.className = 'player-row';
-    row.innerHTML = '<label>Jugador '+(i+1)+':</label>' +
-      '<input type="text" id="pn'+i+'" value="'+n+'" maxlength="4" autocorrect="off" autocapitalize="characters">';
-    cont.appendChild(row);
-  });
-})();
 
 function startGame() {
   for (let i = 0; i < 5; i++) {
