@@ -47,7 +47,7 @@ select {
 input.ini    { width:80px; text-transform:uppercase; }
 input.hcp-in { width:70px; }
 .hcp-verify-label { color:#ffd700; font-size:14px; font-weight:bold; text-align:center; margin:14px 0 10px; letter-spacing:.5px; }
-.hcp-verify-wrap  { overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:14px; }
+.hcp-verify-wrap  { overflow-x:auto; margin-bottom:14px; }
 .hcp-vtbl { width:100%; border-collapse:collapse; font-size:13px; }
 .hcp-vtbl th { background:#0d3318; color:#a8d8a8; padding:6px 4px; text-align:center; font-size:12px; border-bottom:1px solid #3d8a3d; }
 .hcp-vtbl th.sep { width:12px; background:#1a472a; border:none; }
@@ -68,9 +68,9 @@ input.hv:focus { outline:2px solid #ffd700; }
 #game { display:none; padding:6px 4px 90px; }
 #game-title { font-size:14px; color:#ffd700; text-align:center; margin-bottom:4px; letter-spacing:.5px; }
 .grid-hint  { text-align:center; font-size:11px; color:#4a7a4a; margin-bottom:6px; }
-.grid-wrap  { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.grid-wrap  { overflow-x:auto; }
 table.grid  { border-collapse:collapse; width:100%; }
-table.grid th { background:#0d3318; color:#a8d8a8; padding:5px 1px; text-align:center; font-size:11px; white-space:nowrap; position:sticky; top:0; z-index:5; }
+table.grid th { background:#0d3318; color:#a8d8a8; padding:5px 1px; text-align:center; font-size:11px; white-space:nowrap; }
 table.grid th.hdr-h   { width:22px; }
 table.grid th.hdr-par { width:22px; }
 table.grid th.hdr-hcp { width:22px; }
@@ -203,7 +203,7 @@ input[type="number"] { -moz-appearance:textfield; }
   </div>
 </div>
 <script>
-const VERSION = "20260811-008";
+const VERSION = "20260811-009";
 const COURSES = {
   "CNSI":[[4,3],[3,15],[4,17],[4,9],[4,5],[5,1],[4,7],[3,13],[4,11],[4,14],[4,6],[5,10],[4,12],[3,2],[5,8],[4,4],[3,18],[4,16]],
   "Pilara":[[5,3],[3,13],[4,5],[4,11],[4,15],[4,9],[5,1],[3,17],[4,7],[4,12],[3,18],[4,6],[3,14],[5,2],[4,16],[4,10],[4,8],[5,4]],
@@ -367,8 +367,7 @@ function buildResults(precio){
   document.getElementById('h19-section').style.display='none';
   document.getElementById('game').style.display='none';
   document.getElementById('results').style.display='block';
-  window.scrollTo(0,0);
-  saveState();
+  window.scrollTo(0,0);saveState();
 }
 function buildH19(monto){
   const{totals}=calcAll();const best=Math.max(...totals),diffs=totals.map(t=>Math.max(0,best-t)),sumDiffs=diffs.reduce((a,b)=>a+b,0);
