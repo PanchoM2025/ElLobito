@@ -15,6 +15,7 @@
   document.addEventListener('DOMContentLoaded', function() {
     document.title = '🐺 El Lobito';
     document.getElementById('main-title').textContent = '🐺 El Lobito';
+
     fetch(location.pathname + '?_nc=' + Date.now())
       .then(r => r.text())
       .then(html => {
@@ -28,12 +29,72 @@
 <style>
 * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
 body { font-family:Arial,sans-serif; background:#1a472a; color:#fff; min-height:100vh; }
-#setup { max-width:420px; margin:0 auto; padding:40px 24px; }
-#setup h1 { font-size:26px; color:#ffd700; text-align:center; margin-bottom:6px; letter-spacing:1px; }
-.subtitle { color:#a8d8a8; text-align:center; font-size:13px; margin-bottom:28px; }
-.player-row { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:10px; }
-.player-row label { color:#a8d8a8; font-size:14px; text-align:right; min-width:80px; }
-.player-row input { width:6ch; background:#e8f5e9; color:#1a3a1a; border:none; border-radius:4px; padding:8px 6px; font-size:16px; text-align:center; }
+
+/* ── SETUP ── */
+#setup { max-width:460px; margin:0 auto; padding:40px 24px; }
+#setup h1 { font-size:26px; color:#ffd700; text-align:center; margin-bottom:24px; letter-spacing:1px; }
+
+.field-row { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.field-row label { color:#a8d8a8; font-size:14px; white-space:nowrap; min-width:64px; }
+select, input[type="text"], input[type="number"] {
+  background:#e8f5e9; color:#1a3a1a; border:none; border-radius:4px;
+  padding:7px 10px; font-size:16px; -webkit-appearance:none; appearance:none;
+}
+select {
+  width:100%; cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%231a3a1a' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 10px center; padding-right:28px;
+}
+
+.player-tbl { width:100%; border-collapse:collapse; margin:18px 0 8px; }
+.player-tbl th { color:#a8d8a8; font-size:13px; font-weight:bold; padding:5px 10px; text-align:left; border-bottom:1px solid #2d6a2d; }
+.player-tbl td { padding:6px 10px; color:#fff; font-size:14px; }
+input.ini  { width:80px; text-transform:uppercase; }
+input.hcp-in { width:70px; }
+
+/* ── VERIFICACION HCP HOYOS ── */
+.hcp-verify-label {
+  color:#ffd700; font-size:14px; font-weight:bold;
+  text-align:center; margin:14px 0 10px; letter-spacing:.5px;
+}
+.hcp-verify-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:14px; }
+.hcp-vtbl { width:100%; border-collapse:collapse; font-size:13px; }
+.hcp-vtbl th {
+  background:#0d3318; color:#a8d8a8; padding:6px 4px;
+  text-align:center; font-size:12px; border-bottom:1px solid #3d8a3d;
+}
+.hcp-vtbl th.sep { width:12px; background:#1a472a; border:none; }
+.hcp-vtbl td { padding:4px 2px; text-align:center; }
+.hcp-vtbl tr:nth-child(even) td { background:#245c38; }
+.hcp-vtbl tr:nth-child(odd)  td { background:#1a472a; }
+.hcp-vtbl td.sep { background:#1a472a !important; width:12px; }
+.hcp-vtbl td.hnum { color:#a8d8a8; font-size:12px; font-weight:bold; }
+input.hv {
+  width:46px; text-align:center; background:#e8f5e9; color:#1a3a1a;
+  border:none; border-radius:3px; padding:4px 0; font-size:15px; font-weight:bold;
+  -webkit-appearance:none; appearance:none;
+}
+input.hv:focus { outline:2px solid #ffd700; }
+
+.btn-hcp-row { display:flex; gap:8px; margin-bottom:12px; }
+.btn-save {
+  flex:1; padding:9px 8px; background:#1a3a6a; color:#87ceeb;
+  font-size:13px; font-weight:bold; border:none; border-radius:8px;
+  cursor:pointer; touch-action:manipulation; -webkit-user-select:none; user-select:none;
+}
+.btn-save:active { background:#254d8a; }
+.btn-reset {
+  flex:1; padding:9px 8px; background:#3a1a1a; color:#f08080;
+  font-size:13px; font-weight:bold; border:none; border-radius:8px;
+  cursor:pointer; touch-action:manipulation; -webkit-user-select:none; user-select:none;
+}
+.btn-reset:active { background:#5a2a2a; }
+#save-toast {
+  display:none; text-align:center; color:#90ee90;
+  font-size:13px; font-weight:bold; margin:-8px 0 10px;
+}
+
+/* ── GAME ── */
 #game { display:none; padding:10px 6px 90px; }
 #game-title { font-size:15px; color:#ffd700; text-align:center; margin-bottom:10px; letter-spacing:.5px; }
 .grid-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
@@ -43,8 +104,8 @@ table.grid th.hdr-h { width:26px; }
 table.grid th.hdr-p { width:52px; }
 table.grid th.hdr-i { width:34px; }
 table.grid td { padding:3px 2px; text-align:center; }
-tr.r-even td { background:#245c38; }
-tr.r-odd  td { background:#1a472a; }
+tr.r-even   td { background:#245c38; }
+tr.r-odd    td { background:#1a472a; }
 tr.r-empate td { background:#1e1e42; }
 tr.r-hot    td { background:#2e1e08; }
 .hole-num { font-size:12px; color:#a8d8a8; font-weight:bold; }
@@ -60,27 +121,31 @@ tr.totals-row td { background:#0d3318; color:#ffd700; font-weight:bold; font-siz
 .tv-neg { color:#ff7777 !important; }
 .btn-bar { position:fixed; bottom:0; left:0; right:0; display:flex; gap:6px; padding:10px 10px 12px; background:#0a2a14; border-top:1px solid #3d8a3d; z-index:20; }
 .btn-bar button { flex:1; padding:11px 4px; border:none; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer; touch-action:manipulation; }
-.btn-calc { background:#ffd700; color:#1a3a1a; }
-.btn-h19  { background:#87ceeb; color:#1a3a1a; }
+.btn-calc    { background:#ffd700; color:#1a3a1a; }
+.btn-h19     { background:#87ceeb; color:#1a3a1a; }
 .btn-limpiar { background:#2d6a2d; color:#e8ffe8; }
 .btn-nueva   { background:#1a3a1a; color:#a8d8a8; }
+
+/* ── RESULTS ── */
 #results { display:none; padding:12px 6px 80px; }
 #res-title { font-size:15px; color:#ffd700; text-align:center; margin-bottom:10px; }
 table.res { border-collapse:collapse; width:100%; font-size:13px; }
 table.res th { background:#0d3318; color:#a8d8a8; padding:6px 4px; text-align:center; }
 table.res td { padding:4px 4px; text-align:center; }
-tr.rr-even td { background:#245c38; }
-tr.rr-odd  td { background:#1a472a; }
-tr.rr-emp  td { background:#1e1e42; color:#6699ff; }
-tr.rr-sub  td { background:#0a2a14; color:#ffd700; font-weight:bold; border-top:2px solid #3d8a3d; }
+tr.rr-even  td { background:#245c38; }
+tr.rr-odd   td { background:#1a472a; }
+tr.rr-emp   td { background:#1e1e42; color:#6699ff; }
+tr.rr-sub   td { background:#0a2a14; color:#ffd700; font-weight:bold; border-top:2px solid #3d8a3d; }
 tr.rr-price td { background:#1a3a5c; color:#87ceeb; font-weight:bold; font-size:14px; border-top:2px solid #87ceeb; }
-tr.rr-h19  td { background:#3a2800; color:#ffd700; font-weight:bold; border-top:2px solid #ffd700; }
+tr.rr-h19   td { background:#3a2800; color:#ffd700; font-weight:bold; border-top:2px solid #ffd700; }
 .rv-pos { color:#90ee90; }
 .rv-neg { color:#ff7777; }
-.sec-sep { margin-top:20px; padding-top:14px; border-top:2px solid #3d8a3d; }
+.sec-sep   { margin-top:20px; padding-top:14px; border-top:2px solid #3d8a3d; }
 .sec-title { font-size:14px; color:#87ceeb; font-weight:bold; text-align:center; margin-bottom:8px; }
-.btn-volver { display:block; width:100%; margin-top:14px; padding:13px; background:#2d6a2d; color:#fff; font-size:15px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; touch-action:manipulation; }
-.btn-nueva-res { display:block; width:100%; margin-top:8px; padding:11px; background:#1a3a1a; color:#a8d8a8; font-size:14px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; touch-action:manipulation; }
+.btn-volver     { display:block; width:100%; margin-top:14px; padding:13px; background:#2d6a2d; color:#fff; font-size:15px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; touch-action:manipulation; }
+.btn-nueva-res  { display:block; width:100%; margin-top:8px; padding:11px; background:#1a3a1a; color:#a8d8a8; font-size:14px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; touch-action:manipulation; }
+
+/* ── MODAL ── */
 .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:100; align-items:center; justify-content:center; }
 .modal-bg.open { display:flex; }
 .modal-box { background:#1a472a; border:2px solid #3d8a3d; border-radius:12px; padding:24px 20px; width:290px; text-align:center; }
@@ -91,52 +156,79 @@ tr.rr-h19  td { background:#3a2800; color:#ffd700; font-weight:bold; border-top:
 .modal-btns button { flex:1; padding:11px; border:none; border-radius:7px; font-size:14px; font-weight:bold; cursor:pointer; }
 .m-ok     { background:#ffd700; color:#1a3a1a; }
 .m-cancel { background:#2d6a2d; color:#fff; }
-.btn-start { width:100%; padding:15px; background:#2d6a2d; color:#ffd700; font-size:18px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; letter-spacing:1px; touch-action:manipulation; margin-top:20px; }
+
+.btn-start { width:100%; padding:15px; background:#2d6a2d; color:#ffd700; font-size:18px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; letter-spacing:1px; touch-action:manipulation; margin-top:8px; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+input[type="number"] { -moz-appearance:textfield; }
 </style>
 </head>
 <body>
 
+<!-- ── SETUP ── -->
 <div id="setup">
-  <h1 id="main-title">El Lobito</h1>
-  <p class="subtitle">Golf &middot; 5 jugadores &middot; 18 hoyos</p>
-  <div id="player-inputs">
-    <div class="player-row"><label>Jugador 1:</label><input type="text" id="pn0" value="A" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
-    <div class="player-row"><label>Jugador 2:</label><input type="text" id="pn1" value="B" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
-    <div class="player-row"><label>Jugador 3:</label><input type="text" id="pn2" value="C" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
-    <div class="player-row"><label>Jugador 4:</label><input type="text" id="pn3" value="D" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
-    <div class="player-row"><label>Jugador 5:</label><input type="text" id="pn4" value="E" maxlength="4" autocorrect="off" autocapitalize="characters"></div>
+  <h1 id="main-title">🐺 El Lobito</h1>
+
+  <div class="field-row">
+    <label for="csel">Cancha:</label>
+    <select id="csel" onchange="populateHcpTable()"></select>
   </div>
-  <button class="btn-start" onclick="startGame()">COMENZAR &#9658;</button>
+
+  <table class="player-tbl">
+    <thead><tr><th>Jugador</th><th>Iniciales</th><th>HCP</th></tr></thead>
+    <tbody id="prows"></tbody>
+  </table>
+
+  <p class="hcp-verify-label">Verifique los Hcp de los Hoyos</p>
+  <div class="hcp-verify-wrap">
+    <table class="hcp-vtbl">
+      <thead>
+        <tr><th>Hoyo</th><th>Hcp</th><th class="sep"></th><th>Hoyo</th><th>Hcp</th></tr>
+      </thead>
+      <tbody id="hcp-rows"></tbody>
+    </table>
+  </div>
+
+  <div class="btn-hcp-row">
+    <button class="btn-save"  onclick="saveCourse()">&#x1F4BE; Guardar Hcp</button>
+    <button class="btn-reset" onclick="resetCourse()">&#x21A9; Restablecer Hcp</button>
+  </div>
+  <div id="save-toast">&#x2705; Guardado</div>
+
+  <button class="btn-start" onclick="startGame()">COMENZAR &nbsp;&#9658;</button>
 </div>
 
+<!-- ── GAME ── -->
 <div id="game">
-  <p id="game-title">El Lobito</p>
+  <p id="game-title">🐺 El Lobito</p>
   <div class="grid-wrap">
     <table class="grid" id="grid-tbl"></table>
   </div>
   <div class="btn-bar">
     <button class="btn-calc"    onclick="openModal('calc')">CALCULAR</button>
-    <button class="btn-h19"     onclick="openModal('h19')">HOYO 19</button>
+    <button class="btn-h19"     onclick="openModal('h19')">HOYO 19 🍺</button>
     <button class="btn-limpiar" onclick="limpiar()">LIMPIAR</button>
-    <button class="btn-nueva"   onclick="newGame()">NUEVA</button>
+    <button class="btn-nueva"   onclick="newGame()">&#x21A9; NUEVA</button>
   </div>
 </div>
 
+<!-- ── RESULTS ── -->
 <div id="results">
-  <p id="res-title">Resultados - El Lobito</p>
+  <p id="res-title">📊 Resultados — El Lobito</p>
   <div class="grid-wrap">
     <table class="res" id="res-tbl"></table>
   </div>
   <div id="h19-section" style="display:none" class="sec-sep">
-    <p class="sec-title">Hoyo 19</p>
+    <p class="sec-title">🍺 Hoyo 19</p>
     <div class="grid-wrap">
       <table class="res" id="h19-tbl"></table>
     </div>
   </div>
-  <button class="btn-volver"    onclick="showGame()">Volver a la tarjeta</button>
-  <button class="btn-nueva-res" onclick="newGame()">Nueva Partida</button>
+  <button class="btn-volver"    onclick="showGame()">&#9664; &nbsp;Volver a la tarjeta</button>
+  <button class="btn-nueva-res" onclick="newGame()">&#x21A9; &nbsp;Nueva Partida</button>
 </div>
 
+<!-- ── MODAL ── -->
 <div class="modal-bg" id="modal">
   <div class="modal-box">
     <h3 id="modal-title"></h3>
@@ -150,22 +242,151 @@ tr.rr-h19  td { background:#3a2800; color:#ffd700; font-weight:bold; border-top:
 </div>
 
 <script>
-const VERSION = "20260810-004";
+const VERSION = "20260811-005";
+
+// ─── Canchas ───────────────────────────────────────────────────────────────
+const COURSES = {
+  "CNSI": [
+    [4, 3],[3,15],[4,17],[4, 9],[4, 5],[5, 1],[4, 7],[3,13],[4,11],
+    [4,14],[4, 6],[5,10],[4,12],[3,2],[5, 8],[4, 4],[3,18],[4,16]
+  ],
+  "Pilara": [
+    [5, 3],[3,13],[4, 5],[4,11],[4,15],[4, 9],[5, 1],[3,17],[4, 7],
+    [4,12],[3,18],[4, 6],[3,14],[5, 2],[4,16],[4,10],[4, 8],[5, 4]
+  ],
+  "Estancias": [
+    [4,11],[4, 3],[4, 7],[4, 9],[3,17],[5,13],[3,15],[4, 5],[4, 1],
+    [4, 2],[4,10],[3,12],[4,16],[5,18],[3, 8],[5,14],[4, 4],[5, 6]
+  ],
+  "Piero (Azul-Blanca)": [
+    [4, 7],[5, 1],[4,13],[4,11],[4, 3],[3,15],[5, 9],[3,17],[4, 5],
+    [5, 8],[3,18],[4,10],[5,12],[4, 2],[4, 6],[4,14],[3,16],[4, 4]
+  ],
+  "Highland": [
+    [4,17],[3,13],[5,11],[4, 1],[5,15],[3, 9],[4, 7],[4, 3],[4, 5],
+    [5,16],[4, 8],[3,14],[4,12],[5,18],[3, 2],[4, 6],[4,10],[4, 4]
+  ],
+  "Lagartos (Agua-Larga)": [
+    [4, 9],[3,17],[3, 3],[4,13],[3,15],[4, 7],[5, 1],[4, 5],[5,11],
+    [3,16],[5,12],[4, 8],[4, 2],[5,10],[3,18],[5, 6],[4,14],[4, 4]
+  ],
+  "Campo Chico": [
+    [4, 1],[4,13],[5, 3],[3, 7],[5, 5],[4,17],[4,15],[3, 9],[4,11],
+    [4, 4],[3,10],[4, 8],[4,14],[4,18],[3,16],[5, 2],[5,12],[4, 6]
+  ],
+  "Hurlingham": [
+    [4, 5],[4, 7],[3,13],[4,11],[5, 1],[5, 9],[3,15],[4, 3],[3,17],
+    [4,14],[5, 4],[3,18],[5, 2],[4, 6],[3,10],[4, 8],[5,16],[4,12]
+  ],
+  "Jockey (Colorada)": [
+    [4, 5],[4,11],[3,17],[5, 9],[4,13],[4, 7],[4, 1],[3,15],[4, 3],
+    [5, 4],[5,12],[3,18],[4, 2],[4, 6],[5,10],[4, 8],[3,16],[4,14]
+  ],
+  "CUBA Fatima": [
+    [5, 5],[3,15],[4, 1],[5,11],[4, 9],[4, 7],[3,17],[4, 3],[4,13],
+    [4,12],[5, 6],[4, 4],[4, 8],[3,16],[4, 2],[4,10],[3,18],[5,14]
+  ],
+  "Pinguinos": [
+    [4, 7],[5, 3],[3,17],[4,11],[4, 5],[3,15],[4, 9],[5, 1],[4,13],
+    [4,10],[5, 4],[3,18],[4,14],[3,16],[4,8],[5, 2],[3,12],[5,6]
+  ],
+  "Golfers Country Club": [
+    [4, 5],[4, 3],[4,13],[5,17],[3,15],[4, 7],[3, 9],[4,11],[5, 1],
+    [4, 6],[4, 4],[5,16],[3,10],[4, 2],[4,12],[4, 8],[3,14],[5,18]
+  ],
+  "Cumelen": [
+    [4, 5],[3, 9],[4, 7],[3,17],[4, 3],[5, 1],[4,15],[4,11],[3,13],
+    [4, 6],[3,10],[4, 8],[3,18],[4, 4],[5, 2],[4,16],[4,12],[3,14]
+  ],
+};
 
 const BASE_WIN  = [0, 12,  6,  4,  3];
 const BASE_LOSE = [0, -3, -4, -6, -12];
 
-let playerNames  = ['A','B','C','D','E'];
+let playerNames  = ['','','','',''];
+let playerHcps   = [0,0,0,0,0];
+let course       = [];
 let sel          = Array.from({length:18}, () => [false,false,false,false,false]);
 let precioUnidad = 0;
 let modalMode    = '';
 
 const LS_KEY = 'ellobito_state';
 
+// ─── HCP helpers ───────────────────────────────────────────────────────────
+function populateHcpTable() {
+  const name = document.getElementById('csel').value;
+  const data = COURSES[name];
+  const saved = JSON.parse(localStorage.getItem('lob_hcp_' + name) || 'null');
+  const hcpVal = h => (saved && saved[h] != null) ? saved[h] : data[h][1];
+  const tbody = document.getElementById('hcp-rows');
+  tbody.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const h1 = i, h2 = i + 9;
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td class="hnum">${h1+1}</td>` +
+      `<td><input class="hv" type="number" id="hv${h1}" value="${hcpVal(h1)}" min="1" max="18" inputmode="numeric"></td>` +
+      `<td class="sep"></td>` +
+      `<td class="hnum">${h2+1}</td>` +
+      `<td><input class="hv" type="number" id="hv${h2}" value="${hcpVal(h2)}" min="1" max="18" inputmode="numeric"></td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function saveCourse() {
+  const name = document.getElementById('csel').value;
+  const hcps = [];
+  for (let h = 0; h < 18; h++) {
+    const el = document.getElementById(`hv${h}`);
+    const val = el ? parseInt(el.value) : COURSES[name][h][1];
+    hcps.push((!isNaN(val) && val >= 1 && val <= 18) ? val : COURSES[name][h][1]);
+  }
+  localStorage.setItem('lob_hcp_' + name, JSON.stringify(hcps));
+  const toast = document.getElementById('save-toast');
+  toast.style.display = 'block';
+  setTimeout(() => { toast.style.display = 'none'; }, 2000);
+}
+
+function resetCourse() {
+  const name = document.getElementById('csel').value;
+  localStorage.removeItem('lob_hcp_' + name);
+  populateHcpTable();
+  const toast = document.getElementById('save-toast');
+  toast.textContent = 'Restablecido';
+  toast.style.display = 'block';
+  setTimeout(() => { toast.style.display = 'none'; toast.textContent = '✅ Guardado'; }, 2000);
+}
+
+// ─── Init setup ────────────────────────────────────────────────────────────
+(function() {
+  const sel = document.getElementById('csel');
+  Object.keys(COURSES).forEach(name => {
+    const o = document.createElement('option');
+    o.value = o.textContent = name;
+    sel.appendChild(o);
+  });
+  const tbody = document.getElementById('prows');
+  for (let i = 0; i < 5; i++) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td>Jugador ${i+1}</td>` +
+      `<td><input class="ini" type="text" id="pn${i}" maxlength="4" autocorrect="off" autocapitalize="characters"></td>` +
+      `<td><input class="hcp-in" type="number" id="ph${i}" placeholder="0" min="0" max="54" inputmode="numeric"></td>`;
+    tbody.appendChild(tr);
+  }
+  populateHcpTable();
+  loadState();
+})();
+
+// ─── Persistencia ──────────────────────────────────────────────────────────
 function saveState() {
   const screen = document.getElementById('results').style.display === 'block' ? 'results' :
                  document.getElementById('game').style.display    === 'block' ? 'game'    : 'setup';
-  try { localStorage.setItem(LS_KEY, JSON.stringify({ playerNames, sel, precioUnidad, screen })); } catch(e) {}
+  try { localStorage.setItem(LS_KEY, JSON.stringify({
+    playerNames, playerHcps, course,
+    courseName: document.getElementById('game-title').textContent,
+    sel, precioUnidad, screen
+  })); } catch(e) {}
 }
 
 function clearState() {
@@ -179,21 +400,27 @@ function loadState() {
     const s = JSON.parse(raw);
     if (!s) return;
     playerNames  = s.playerNames  || playerNames;
-    sel          = s.sel          || sel;
+    playerHcps   = s.playerHcps   || playerHcps;
+    course       = s.course       || [];
     precioUnidad = s.precioUnidad || 0;
     for (let i = 0; i < 5; i++) {
-      const el = document.getElementById('pn'+i);
-      if (el) el.value = playerNames[i];
+      const en = document.getElementById('pn'+i);
+      const eh = document.getElementById('ph'+i);
+      if (en) en.value = playerNames[i];
+      if (eh) eh.value = playerHcps[i] || '';
     }
     if (s.screen === 'game') {
+      if (s.courseName) document.getElementById('game-title').textContent = s.courseName;
       buildGrid();
       document.getElementById('setup').style.display   = 'none';
       document.getElementById('game').style.display    = 'block';
       document.getElementById('results').style.display = 'none';
     } else if (s.screen === 'results' && precioUnidad > 0) {
+      if (s.courseName) document.getElementById('game-title').textContent = s.courseName;
       buildGrid();
       buildResults(precioUnidad);
     } else if (s.screen === 'results') {
+      if (s.courseName) document.getElementById('game-title').textContent = s.courseName;
       buildGrid();
       document.getElementById('setup').style.display   = 'none';
       document.getElementById('game').style.display    = 'block';
@@ -205,25 +432,37 @@ function loadState() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveState(); });
 window.addEventListener('pagehide', saveState);
 
+// ─── Comenzar ──────────────────────────────────────────────────────────────
 function startGame() {
   for (let i = 0; i < 5; i++) {
     const v = document.getElementById('pn'+i).value.trim().toUpperCase();
     playerNames[i] = v || 'J'+(i+1);
+    const h = document.getElementById('ph'+i).value.trim();
+    playerHcps[i] = h === '' ? 0 : Math.max(0, Math.min(54, parseInt(h)||0));
   }
+  const name = document.getElementById('csel').value;
+  const base = COURSES[name];
+  course = base.map(([par], h) => {
+    const hv = parseInt(document.getElementById(`hv${h}`).value);
+    return [par, isNaN(hv)||hv<1||hv>18 ? base[h][1] : hv];
+  });
   sel = Array.from({length:18}, () => [false,false,false,false,false]);
   precioUnidad = 0;
+  document.getElementById('game-title').textContent = '🐺 El Lobito — ' + name;
   buildGrid();
   document.getElementById('setup').style.display   = 'none';
   document.getElementById('game').style.display    = 'block';
   document.getElementById('results').style.display = 'none';
+  saveState();
 }
 
+// ─── Grid ──────────────────────────────────────────────────────────────────
 function buildGrid() {
   const tbl = document.getElementById('grid-tbl');
   tbl.innerHTML = '';
   const thead = document.createElement('thead');
   let thHtml = '<tr><th class="hdr-h">H</th>';
-  playerNames.forEach(n => thHtml += '<th class="hdr-p">'+n+'</th>');
+  playerNames.forEach((n,i) => thHtml += `<th class="hdr-p">${n}<br><span style="color:#ffd700;font-size:10px">HCP ${playerHcps[i]}</span></th>`);
   thHtml += '<th class="hdr-i"></th></tr>';
   thead.innerHTML = thHtml;
   tbl.appendChild(thead);
@@ -234,16 +473,16 @@ function buildGrid() {
     tr.className = h%2===0 ? 'r-even' : 'r-odd';
     let html = '<td class="hole-num">'+(h+1)+'</td>';
     for (let p = 0; p < 5; p++) {
-      html += '<td><button class="tog" id="tog_'+h+'_'+p+'" onclick="toggle('+h+','+p+')">'+playerNames[p]+'</button></td>';
+      html += `<td><button class="tog" id="tog_${h}_${p}" onclick="toggle(${h},${p})">${playerNames[p]}</button></td>`;
     }
-    html += '<td class="ind" id="ind_'+h+'"></td>';
+    html += `<td class="ind" id="ind_${h}"></td>`;
     tr.innerHTML = html;
     tbody.appendChild(tr);
   }
   const trTot = document.createElement('tr');
   trTot.className = 'totals-row';
   let totHtml = '<td>TOT</td>';
-  for (let p = 0; p < 5; p++) totHtml += '<td id="tot_'+p+'">0</td>';
+  for (let p = 0; p < 5; p++) totHtml += `<td id="tot_${p}">0</td>`;
   totHtml += '<td></td>';
   trTot.innerHTML = totHtml;
   tbody.appendChild(trTot);
@@ -254,7 +493,7 @@ function buildGrid() {
 function toggle(h, p) { sel[h][p] = !sel[h][p]; refreshGrid(); }
 
 function limpiar() {
-  if (!confirm('Limpiar toda la tarjeta?')) return;
+  if (!confirm('¿Limpiar toda la tarjeta?')) return;
   sel = Array.from({length:18}, () => [false,false,false,false,false]);
   refreshGrid();
 }
@@ -272,16 +511,16 @@ function refreshGrid() {
     else if (!isEmpate && mult > 1) row.className = 'r-hot';
     else                            row.className = h%2===0 ? 'r-even' : 'r-odd';
     for (let p = 0; p < 5; p++) {
-      const btn = document.getElementById('tog_'+h+'_'+p);
+      const btn = document.getElementById(`tog_${h}_${p}`);
       btn.className = 'tog';
       if (sel[h][p]) btn.classList.add(isLobito ? 'lobito' : 'on');
     }
-    const ind = document.getElementById('ind_'+h);
-    if (isEmpate && numWin === 0)        ind.innerHTML = '<span class="badge-emp">=&gt;</span>';
-    else if (isLobito && mult > 1)       ind.innerHTML = '<span class="badge-mult">x'+mult+'</span> W';
-    else if (isLobito)                   ind.innerHTML = 'W';
-    else if (mult > 1 && !isEmpate)      ind.innerHTML = '<span class="badge-mult">x'+mult+'</span>';
-    else                                 ind.innerHTML = '';
+    const ind = document.getElementById(`ind_${h}`);
+    if (isEmpate && numWin === 0)   ind.innerHTML = '<span class="badge-emp">&#8658;</span>';
+    else if (isLobito && mult > 1)  ind.innerHTML = `<span class="badge-mult">×${mult}</span><span class="badge-lob"> 🐺</span>`;
+    else if (isLobito)              ind.innerHTML = '<span class="badge-lob">🐺</span>';
+    else if (mult > 1 && !isEmpate) ind.innerHTML = `<span class="badge-mult">×${mult}</span>`;
+    else                            ind.innerHTML = '';
     if (!isEmpate) {
       const wp = BASE_WIN[numWin]  * mult;
       const lp = BASE_LOSE[numWin] * mult;
@@ -290,13 +529,14 @@ function refreshGrid() {
     } else { acum = Math.min(acum + 1, 17); }
   }
   for (let p = 0; p < 5; p++) {
-    const el = document.getElementById('tot_'+p);
+    const el = document.getElementById(`tot_${p}`);
     const v  = totals[p];
     el.textContent = v > 0 ? '+'+v : String(v);
     el.className   = v > 0 ? 'tv-pos' : v < 0 ? 'tv-neg' : '';
   }
 }
 
+// ─── Cálculo ───────────────────────────────────────────────────────────────
 function calcAll() {
   let acum = 0;
   const totals = [0,0,0,0,0];
@@ -335,14 +575,14 @@ function buildResults(precio) {
     const tr = document.createElement('tr');
     tr.className = d.isEmpate ? 'rr-emp' : h%2===0 ? 'rr-even' : 'rr-odd';
     let lbl = String(h+1);
-    if (d.isLobito) lbl += ' W';
-    if (d.mult > 1) lbl += '<br><small style="color:#e65c00">x'+d.mult+'</small>';
-    if (d.isEmpate) lbl += '<br><small style="color:#6699ff">=&gt;</small>';
+    if (d.isLobito) lbl += ' 🐺';
+    if (d.mult > 1) lbl += '<br><small style="color:#e65c00">×'+d.mult+'</small>';
+    if (d.isEmpate) lbl += '<br><small style="color:#6699ff">&#8658;</small>';
     let html = '<td>'+lbl+'</td>';
     d.pts.forEach(v => {
       const cls = v > 0 ? 'rv-pos' : v < 0 ? 'rv-neg' : '';
-      const txt = v === 0 ? '-' : v > 0 ? '+'+v : String(v);
-      html += '<td class="'+cls+'">'+txt+'</td>';
+      const txt = v === 0 ? '—' : v > 0 ? '+'+v : String(v);
+      html += `<td class="${cls}">${txt}</td>`;
     });
     tr.innerHTML = html;
     tbody.appendChild(tr);
@@ -352,18 +592,18 @@ function buildResults(precio) {
   let totHtml = '<td>TOTAL</td>';
   totals.forEach(v => {
     const cls = v > 0 ? 'rv-pos' : v < 0 ? 'rv-neg' : '';
-    totHtml += '<td class="'+cls+'">'+(v > 0 ? '+'+v : String(v))+'</td>';
+    totHtml += `<td class="${cls}">${v > 0 ? '+'+v : String(v)}</td>`;
   });
   trTot.innerHTML = totHtml;
   tbody.appendChild(trTot);
   const trPrice = document.createElement('tr');
   trPrice.className = 'rr-price';
-  let priceHtml = '<td>$ (x'+precio.toLocaleString('es-AR')+')</td>';
+  let priceHtml = `<td>$ (×${precio.toLocaleString('es-AR')})</td>`;
   totals.forEach(v => {
     const money = Math.round(v * precio);
     const cls   = money > 0 ? 'rv-pos' : money < 0 ? 'rv-neg' : '';
     const txt   = money > 0 ? '+'+money.toLocaleString('es-AR') : money.toLocaleString('es-AR');
-    priceHtml += '<td class="'+cls+'">'+txt+'</td>';
+    priceHtml += `<td class="${cls}">${txt}</td>`;
   });
   trPrice.innerHTML = priceHtml;
   tbody.appendChild(trPrice);
@@ -387,10 +627,10 @@ function buildH19(monto) {
   html += '<tr class="rr-even"><td style="color:#a8d8a8;font-size:12px">Puntos</td>';
   totals.forEach(v => {
     const cls = v > 0 ? 'rv-pos' : v < 0 ? 'rv-neg' : '';
-    html += '<td class="'+cls+'">'+(v > 0 ? '+'+v : v)+'</td>';
+    html += `<td class="${cls}">${v > 0 ? '+'+v : v}</td>`;
   });
   html += '</tr><tr class="rr-h19"><td>Paga</td>';
-  pagos.forEach(p => { html += p === 0 ? '<td>1ro</td>' : '<td>$'+p.toLocaleString('es-AR')+'</td>'; });
+  pagos.forEach(p => { html += p === 0 ? '<td>🏆</td>' : `<td>$${p.toLocaleString('es-AR')}</td>`; });
   html += '</tr></tbody>';
   tbl.innerHTML = html;
   document.getElementById('h19-section').style.display = 'block';
@@ -399,17 +639,18 @@ function buildH19(monto) {
   setTimeout(() => document.getElementById('h19-section').scrollIntoView({behavior:'smooth'}), 100);
 }
 
+// ─── Modal ─────────────────────────────────────────────────────────────────
 function openModal(mode) {
   modalMode = mode;
   const inp = document.getElementById('modal-input');
   if (mode === 'calc') {
     document.getElementById('modal-title').textContent = 'Precio por unidad';
-    document.getElementById('modal-desc').textContent  = 'Cuanto vale cada unidad?';
+    document.getElementById('modal-desc').textContent  = '¿Cuánto vale cada unidad?';
     inp.placeholder = 'Ej: 1000';
     inp.value = precioUnidad > 0 ? precioUnidad : '';
   } else {
-    document.getElementById('modal-title').textContent = 'Hoyo 19';
-    document.getElementById('modal-desc').textContent  = 'Monto total a repartir (el 1ro no paga):';
+    document.getElementById('modal-title').textContent = '🍺 Hoyo 19';
+    document.getElementById('modal-desc').textContent  = 'Monto total a repartir (el 1° no paga):';
     inp.placeholder = 'Ej: 5000';
     inp.value = '';
   }
@@ -421,7 +662,7 @@ function closeModal() { document.getElementById('modal').classList.remove('open'
 
 function confirmModal() {
   const val = parseFloat(document.getElementById('modal-input').value);
-  if (isNaN(val) || val <= 0) { alert('Ingresa un valor valido mayor a 0.'); return; }
+  if (isNaN(val) || val <= 0) { alert('Ingresa un valor válido mayor a 0.'); return; }
   closeModal();
   if (modalMode === 'calc') buildResults(val);
   else                      buildH19(val);
@@ -436,10 +677,13 @@ function showGame() {
 
 function newGame() {
   clearState();
-  playerNames = ['A','B','C','D','E'];
+  playerNames = ['','','','',''];
+  playerHcps  = [0,0,0,0,0];
   for (let i = 0; i < 5; i++) {
-    const el = document.getElementById('pn'+i);
-    if (el) el.value = playerNames[i];
+    const en = document.getElementById('pn'+i);
+    const eh = document.getElementById('ph'+i);
+    if (en) en.value = '';
+    if (eh) eh.value = '';
   }
   document.getElementById('game').style.display    = 'none';
   document.getElementById('results').style.display = 'none';
