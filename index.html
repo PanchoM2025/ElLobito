@@ -255,8 +255,8 @@ input[type="number"] { -moz-appearance:textfield; }
       <div class="i-score-row" style="padding-left:12px"><span>El Lobito</span><span class="i-val">&#xB1;12</span></div>
       <div class="i-score-row" style="padding-left:12px"><span>Resto</span><span class="i-val">&#x2213;3 c/u</span></div>
     </div>
-    <p class="i-note"><strong>Empate:</strong> se acumulan 6 puntos para el hoyo siguiente.</p>
-    <p class="i-note"><strong>&#x1F43A; Lobito + empate acumulado:</strong> duplica tambi&#xE9;n los puntos acumulados.</p>
+    <p class="i-note"><strong>Empate:</strong> se acumulan 6 puntos en el bote para el hoyo siguiente (se suman, no se multiplican).</p>
+    <p class="i-note"><strong>&#x1F43A; Lobito + bote acumulado:</strong> el Lobito se lleva los 12 puntos de su victoria m&#xE1;s todo el bote acumulado.</p>
     <p class="i-note"><strong>Turno de elecci&#xF3;n:</strong> rota entre los 5 jugadores en cada hoyo.</p>
     <button class="instr-close" onclick="closeInstructions()">Cerrar</button>
   </div>
@@ -432,25 +432,25 @@ function calcHoleResult(h){
   return{empate:false,winners:aWins?teamA:teamB,losers:aWins?teamB:teamA,numWin:(aWins?teamA:teamB).length,nets};
 }
 function recalcAll(){
-  let acum=0;const totals=[0,0,0,0,0];
+  let pot=0;const totals=[0,0,0,0,0];
   for(let h=0;h<18;h++){
     const result=calcHoleResult(h),row=document.getElementById('row'+h),ind=document.getElementById(`ind_${h}`);
     if(!row||!ind)continue;
     if(!result){row.className=h%2===0?'r-even':'r-odd';ind.innerHTML='';}
-    else if(result.empate){row.className='r-empate';ind.innerHTML='<span class="badge-emp">&#8658;</span>';acum=Math.min(acum+1,17);}
-    else{const mult=acum+1,isLob=result.numWin===1;row.className=mult>1?'r-hot':(h%2===0?'r-even':'r-odd');
-      ind.innerHTML=(mult>1?`<span class="badge-mult">×${mult}</span>`:'')+( isLob?'<span class="badge-lob">🐺</span>':'');
-      result.winners.forEach(p=>totals[p]+=BASE_WIN[result.numWin]*mult);result.losers.forEach(p=>totals[p]+=BASE_LOSE[result.numWin]*mult);acum=0;}
+    else if(result.empate){row.className='r-empate';ind.innerHTML='<span class="badge-emp">&#8658;</span>';pot+=6;}
+    else{const isLob=result.numWin===1;row.className=pot>0?'r-hot':(h%2===0?'r-even':'r-odd');
+      ind.innerHTML=(pot>0?`<span class="badge-mult">+${pot}</span>`:'')+( isLob?'<span class="badge-lob">🐺</span>':'');
+      result.winners.forEach(p=>totals[p]+=BASE_WIN[result.numWin]+pot);result.losers.forEach(p=>totals[p]+=BASE_LOSE[result.numWin]);pot=0;}
   }
   for(let p=0;p<5;p++){const el=document.getElementById(`tot_${p}`);if(!el)continue;const v=totals[p];el.textContent=v>0?'+'+v:String(v);el.className=v>0?'tv-pos':v<0?'tv-neg':'';}
 }
 function limpiar(){if(!confirm('¿Limpiar toda la tarjeta?'))return;scores=Array.from({length:18},()=>Array(5).fill(''));teams=Array.from({length:18},()=>Array(5).fill(false));buildGrid();}
 function calcAll(){
-  let acum=0;const totals=[0,0,0,0,0],holeData=[];
-  for(let h=0;h<18;h++){const result=calcHoleResult(h),mult=acum+1;
+  let pot=0;const totals=[0,0,0,0,0],holeData=[];
+  for(let h=0;h<18;h++){const result=calcHoleResult(h);
     if(!result){holeData.push({skip:true});}
-    else if(result.empate){holeData.push({empate:true,nets:result.nets,mult,pts:Array(5).fill(0)});acum=Math.min(acum+1,17);}
-    else{const pts=Array(5).fill(0);result.winners.forEach(p=>pts[p]=BASE_WIN[result.numWin]*mult);result.losers.forEach(p=>pts[p]=BASE_LOSE[result.numWin]*mult);holeData.push({empate:false,result,pts,mult,nets:result.nets});pts.forEach((v,i)=>totals[i]+=v);acum=0;}
+    else if(result.empate){holeData.push({empate:true,nets:result.nets,pot,pts:Array(5).fill(0)});pot+=6;}
+    else{const pts=Array(5).fill(0);result.winners.forEach(p=>pts[p]=BASE_WIN[result.numWin]+pot);result.losers.forEach(p=>pts[p]=BASE_LOSE[result.numWin]);holeData.push({empate:false,result,pts,pot,nets:result.nets});pts.forEach((v,i)=>totals[i]+=v);pot=0;}
   }
   return{holeData,totals};
 }
@@ -459,7 +459,7 @@ function buildResults(precio){
   let th='<thead><tr><th>H</th>';playerNames.forEach(n=>th+=`<th>${n}</th>`);th+='</tr></thead>';tbl.innerHTML=th;
   const tbody=document.createElement('tbody');let ri=0;
   holeData.forEach((d,h)=>{if(d.skip)return;const tr=document.createElement('tr');tr.className=d.empate?'rr-emp':ri%2===0?'rr-even':'rr-odd';ri++;
-    let lbl=String(h+1);if(!d.empate&&d.result.numWin===1)lbl+=' 🐺';if(d.mult>1)lbl+=`<br><small style="color:#e65c00">×${d.mult}</small>`;if(d.empate)lbl+=`<br><small style="color:#6699ff">&#8658;</small>`;
+    let lbl=String(h+1);if(!d.empate&&d.result.numWin===1)lbl+=' 🐺';if(!d.empate&&d.pot>0)lbl+=`<br><small style="color:#e65c00">+${d.pot}</small>`;if(d.empate)lbl+=`<br><small style="color:#6699ff">&#8658;</small>`;
     let html=`<td>${lbl}</td>`;d.pts.forEach(v=>{const cls=v>0?'rv-pos':v<0?'rv-neg':'',txt=v===0?(d.empate?'=':'—'):v>0?'+'+v:String(v);html+=`<td class="${cls}">${txt}</td>`;});tr.innerHTML=html;tbody.appendChild(tr);});
   const trT=document.createElement('tr');trT.className='rr-sub';let tot='<td>TOTAL</td>';totals.forEach(v=>{const cls=v>0?'rv-pos':v<0?'rv-neg':'';tot+=`<td class="${cls}">${v>0?'+'+v:String(v)}</td>`;});trT.innerHTML=tot;tbody.appendChild(trT);
   const trP=document.createElement('tr');trP.className='rr-price';let ph=`<td>$(×${precio.toLocaleString('es-AR')})</td>`;totals.forEach(v=>{const money=Math.round(v*precio),cls=money>0?'rv-pos':money<0?'rv-neg':'',txt=money>0?'+'+money.toLocaleString('es-AR'):money.toLocaleString('es-AR');ph+=`<td class="${cls}">${txt}</td>`;});trP.innerHTML=ph;tbody.appendChild(trP);tbl.appendChild(tbody);
