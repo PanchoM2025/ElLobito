@@ -150,7 +150,7 @@ tr.rr-h19  td { background:#3a2800; color:#ffd700; font-weight:bold; border-top:
 </div>
 
 <script>
-const VERSION = "20260810-003";
+const VERSION = "20260810-004";
 
 const BASE_WIN  = [0, 12,  6,  4,  3];
 const BASE_LOSE = [0, -3, -4, -6, -12];
@@ -436,6 +436,11 @@ function showGame() {
 
 function newGame() {
   clearState();
+  playerNames = ['A','B','C','D','E'];
+  for (let i = 0; i < 5; i++) {
+    const el = document.getElementById('pn'+i);
+    if (el) el.value = playerNames[i];
+  }
   document.getElementById('game').style.display    = 'none';
   document.getElementById('results').style.display = 'none';
   document.getElementById('setup').style.display   = 'block';
