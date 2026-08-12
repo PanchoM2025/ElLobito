@@ -295,7 +295,7 @@ input[type="number"] { -moz-appearance:textfield; }
   </div>
 </div>
 <script>
-const VERSION = "20260811-012";
+const VERSION = "20260811-013";
 const COURSES = {
   "CNSI":[[4,3],[3,15],[4,17],[4,9],[4,5],[5,1],[4,7],[3,13],[4,11],[4,14],[4,6],[5,10],[4,12],[3,2],[5,8],[4,4],[3,18],[4,16]],
   "Pilara":[[5,3],[3,13],[4,5],[4,11],[4,15],[4,9],[5,1],[3,17],[4,7],[4,12],[3,18],[4,6],[3,14],[5,2],[4,16],[4,10],[4,8],[5,4]],
@@ -409,26 +409,16 @@ function buildGrid(){
   }
   const trT=document.createElement('tr');trT.className='totals-row';
   let tot='<td>TOT</td><td></td><td></td>';for(let p=0;p<5;p++)tot+=`<td id="tot_${p}">0</td>`;tot+='<td></td>';trT.innerHTML=tot;tbody.appendChild(trT);
+  const trPot=document.createElement('tr');trPot.id='pot-row';trPot.style.display='none';
+  trPot.innerHTML='<td colspan="9" style="text-align:center;color:#ffd700;background:#3a2800;font-size:13px;font-weight:bold;padding:5px">🏺 <span id="pot-display"></span></td>';
+  tbody.appendChild(trPot);
   tbl.appendChild(tbody);recalcAll();
 }
 function onScore(h,p,val){scores[h][p]=val.trim().toUpperCase();recalcAll();saveState();}
 function toggleTeam(h,p){
   teams[h][p]=!teams[h][p];const btn=document.getElementById(`cb_${h}_${p}`);
   if(teams[h][p]){btn.className='chk on';btn.textContent='✓';}else{btn.className='chk off';btn.textContent='';}
-  recalcAll();saveState();checkBestNet(h);
-}
-function checkBestNet(h){
-  if(!course[h])return;const[,hcpH]=course[h];
-  const teamA=[],teamB=[];for(let p=0;p<5;p++)(teams[h][p]?teamA:teamB).push(p);
-  if(teamA.length===0||teamB.length===0)return;
-  const nets=[];let allOk=true;
-  for(let p=0;p<5;p++){const raw=(scores[h][p]||'').trim().toUpperCase();if(raw===''||raw==='X'){allOk=false;break;}const g=parseInt(raw);if(isNaN(g)||g<=0){allOk=false;break;}nets.push(g-strokesTeam(playerHcps[p],hcpH));}
-  if(!allOk)return;
-  let bestNet=Infinity,bestP=-1;
-  for(let p=0;p<5;p++){if(nets[p]<bestNet){bestNet=nets[p];bestP=p;}}
-  if(bestP>=0&&!teams[h][bestP]){
-    alert(`⚠️ OJO: ${playerNames[bestP]} tiene el mejor score neto (${bestNet}) y está en el equipo contrario.`);
-  }
+  recalcAll();saveState();
 }
 function calcHoleResult(h){
   if(!course[h])return null;const[,hcpH]=course[h];
@@ -463,6 +453,8 @@ function recalcAll(){
       result.winners.forEach(p=>totals[p]+=BASE_WIN[result.numWin]+pot);result.losers.forEach(p=>totals[p]+=BASE_LOSE[result.numWin]);pot=0;}
   }
   for(let p=0;p<5;p++){const el=document.getElementById(`tot_${p}`);if(!el)continue;const v=totals[p];el.textContent=v>0?'+'+v:String(v);el.className=v>0?'tv-pos':v<0?'tv-neg':'';}
+  const potRow=document.getElementById('pot-row'),potDisp=document.getElementById('pot-display');
+  if(potRow&&potDisp){if(pot>0){potRow.style.display='';potDisp.textContent=`Bote no resuelto: +${pot} pts (se suma al H19)`;}else{potRow.style.display='none';}}
 }
 function limpiar(){if(!confirm('¿Limpiar toda la tarjeta?'))return;scores=Array.from({length:18},()=>Array(5).fill(''));teams=Array.from({length:18},()=>Array(5).fill(false));buildGrid();}
 function calcAll(){
@@ -472,7 +464,7 @@ function calcAll(){
     else if(result.empate){holeData.push({empate:true,nets:result.nets,pot,pts:Array(5).fill(0)});pot+=6;}
     else{const pts=Array(5).fill(0);result.winners.forEach(p=>pts[p]=BASE_WIN[result.numWin]+pot);result.losers.forEach(p=>pts[p]=BASE_LOSE[result.numWin]);holeData.push({empate:false,result,pts,pot,nets:result.nets});pts.forEach((v,i)=>totals[i]+=v);pot=0;}
   }
-  return{holeData,totals};
+  return{holeData,totals,pot};
 }
 function buildResults(precio){
   precioUnidad=precio;const{holeData,totals}=calcAll();const tbl=document.getElementById('res-tbl');tbl.innerHTML='';
@@ -489,7 +481,10 @@ function buildResults(precio){
   window.scrollTo(0,0);saveState();
 }
 function buildH19(monto){
-  const{totals}=calcAll();const best=Math.max(...totals),diffs=totals.map(t=>Math.max(0,best-t)),sumDiffs=diffs.reduce((a,b)=>a+b,0);
+  const{totals,pot}=calcAll();
+  /* bote no resuelto: se lo lleva el/los líderes (como si ganaran el H19 extra) */
+  if(pot>0){const maxT=Math.max(...totals);totals.forEach((v,i)=>{if(v===maxT)totals[i]+=pot;});}
+  const best=Math.max(...totals),diffs=totals.map(t=>Math.max(0,best-t)),sumDiffs=diffs.reduce((a,b)=>a+b,0);
   if(sumDiffs===0){alert('No hay diferencias para repartir.');return;}
   const pagos=diffs.map(d=>d>0?Math.round(monto*d/sumDiffs):0);
   const tbl=document.getElementById('h19-tbl');let html='<thead><tr><th>Concepto</th>';
