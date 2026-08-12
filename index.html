@@ -167,6 +167,25 @@ tr.rr-h19   td { background:#3a2800; color:#ffd700; font-weight:bold; border-top
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
 input[type="number"] { -moz-appearance:textfield; }
+
+/* ── REGLAS MODAL ── */
+.rules-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:200; align-items:flex-start; justify-content:center; overflow-y:auto; padding:20px 12px 40px; }
+.rules-bg.open { display:flex; }
+.rules-box { background:#0d3318; border:2px solid #3d8a3d; border-radius:14px; padding:22px 18px; width:100%; max-width:420px; }
+.rules-box h2 { color:#ffd700; font-size:19px; text-align:center; margin-bottom:16px; letter-spacing:1px; }
+.rules-box h3 { color:#90ee90; font-size:13px; font-weight:bold; margin:14px 0 6px; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid #2d6a2d; padding-bottom:4px; }
+.rules-box p  { color:#e8ffe8; font-size:13px; line-height:1.6; }
+.rules-box .pts-tbl { width:100%; border-collapse:collapse; margin:8px 0; font-size:13px; }
+.rules-box .pts-tbl th { background:#1a472a; color:#a8d8a8; padding:5px 6px; text-align:center; font-size:12px; }
+.rules-box .pts-tbl td { padding:5px 6px; text-align:center; border-bottom:1px solid #2d6a2d; }
+.rules-box .pts-tbl tr:nth-child(even) td { background:#1a472a; }
+.rules-box .lob { color:#ffd700; font-weight:bold; }
+.rules-box .emp { color:#6699ff; font-weight:bold; }
+.rules-box .pos { color:#90ee90; font-weight:bold; }
+.rules-box .neg { color:#ff7777; font-weight:bold; }
+.btn-close-rules { display:block; width:100%; margin-top:18px; padding:13px; background:#2d6a2d; color:#fff; font-size:15px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; touch-action:manipulation; }
+.btn-rules-setup { width:100%; margin-top:10px; padding:10px; background:#072b18; color:#87ceeb; font-size:13px; font-weight:bold; border:1px solid #3d8a3d; border-radius:8px; cursor:pointer; touch-action:manipulation; }
+.btn-rules-game  { background:#072b18; color:#87ceeb; font-size:12px; font-weight:bold; border:1px solid #3d8a3d; border-radius:6px; padding:10px 4px; cursor:pointer; touch-action:manipulation; }
 </style>
 </head>
 <body>
@@ -195,6 +214,7 @@ input[type="number"] { -moz-appearance:textfield; }
   </div>
   <div id="save-toast">&#x2705; Guardado</div>
   <button class="btn-start" onclick="startGame()">COMENZAR &nbsp;&#9658;</button>
+  <button class="btn-rules-setup" onclick="openRules()">📋 Reglas del juego</button>
 </div>
 
 <!-- ── GAME ── -->
@@ -214,6 +234,7 @@ input[type="number"] { -moz-appearance:textfield; }
     <button class="btn-calc"    onclick="openModal('calc')">VALORIZAR</button>
     <button class="btn-h19"     onclick="openModal('h19')">HOYO 19 🍺</button>
     <button class="btn-limpiar" onclick="limpiar()">LIMPIAR</button>
+    <button class="btn-rules-game" onclick="openRules()">📋</button>
     <button class="btn-nueva"   onclick="newGame()">&#x21A9; NUEVA</button>
   </div>
 </div>
@@ -232,6 +253,49 @@ input[type="number"] { -moz-appearance:textfield; }
   <button class="btn-nueva-res" onclick="newGame()">&#x21A9; &nbsp;Nueva Partida</button>
 </div>
 
+<!-- ── REGLAS MODAL ── -->
+<div class="rules-bg" id="rules-modal">
+  <div class="rules-box">
+    <h2>🐺 El Lobito — Reglas</h2>
+
+    <h3>El juego</h3>
+    <p>Juego para <strong>5 jugadores</strong>. En cada hoyo, el jugador con el turno de elección pega primero y observa los tiros de los demás. Puede elegir compañero <em>después de cada tiro</em>; si lo deja pasar, no puede volver a elegirlo.</p>
+
+    <h3>Formación de equipos</h3>
+    <p><strong>2 vs 3:</strong> elige 1 compañero. Gana el equipo cuyo jugador logra el menor score <strong>neto</strong> (85% del HCP).<br><br>
+    <strong>Lobito 🐺:</strong> no elige a nadie → juega 1 vs 4.</p>
+
+    <h3>Puntuación por hoyo</h3>
+    <table class="pts-tbl">
+      <thead><tr><th>Formación</th><th>Ganadores</th><th>Perdedores</th></tr></thead>
+      <tbody>
+        <tr><td class="lob">Lobito 🐺 (1 vs 4)</td><td class="pos">+12 c/u</td><td class="neg">−3 c/u</td></tr>
+        <tr><td>Pareja (2 vs 3)</td><td class="pos">+3 c/u</td><td class="neg">−2 c/u</td></tr>
+        <tr><td>Trío (3 vs 2)</td><td class="pos">+2 c/u</td><td class="neg">−3 c/u</td></tr>
+        <tr><td class="lob">Anti-Lobito (4 vs 1)</td><td class="pos">+3 c/u</td><td class="neg">−12 c/u</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:11px;color:#a8d8a8;margin-top:4px">Siempre se reparten 6 puntos por hoyo.</p>
+
+    <h3>Empate <span class="emp">⇒</span></h3>
+    <p>Si hay empate en el hoyo, los <strong>6 puntos se acumulan</strong> para el siguiente. El multiplicador crece con cada empate consecutivo.</p>
+
+    <h3>Empate general</h3>
+    <p>Si el jugador con turno <strong>tilta todas las casillas</strong> (sin elegir a nadie como rival), es empate general: se acumulan puntos sin comparar scores.</p>
+
+    <h3>Turno de elección</h3>
+    <p>Rota entre los 5 jugadores hoyo a hoyo, siempre en el mismo orden.</p>
+
+    <h3>En la app</h3>
+    <p>• Ingresá el score en cada celda.<br>
+    • Presioná <strong>✓</strong> para marcar los jugadores del equipo "elegido" en ese hoyo.<br>
+    • Si todos tienen ✓ → empate general automático.<br>
+    • <strong>VALORIZAR</strong> → ingresá el precio por unidad para ver los montos.</p>
+
+    <button class="btn-close-rules" onclick="closeRules()">✕ &nbsp;Cerrar</button>
+  </div>
+</div>
+
 <!-- ── MODAL ── -->
 <div class="modal-bg" id="modal">
   <div class="modal-box">
@@ -246,7 +310,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20260812-013";
+const VERSION = "20260812-014";
 
 const COURSES = {
   "CNSI": [
@@ -319,7 +383,7 @@ const LS_KEY = 'ellobito2_state';
 // ── HCP helpers ──────────────────────────────────────────────────────────────
 function hcp85(hcp)             { return Math.round(hcp * 0.85); }
 function strokesTeam(hcp, hcpH) { const h85=hcp85(hcp); return Math.floor(h85/18)+(h85%18>=hcpH?1:0); }
-function strokesFull(hcp, hcpH) { return Math.floor(hcp/18)+(hcp%18>=hcpH?1:0); }
+function strokesFull(hcp, hcpH) { return Math.floor(hcp/18)+(hcp%18>=hcpH?1:0); }  // HCP 100% (SUASA/Stbl/AAG)
 function stblPts(g, par, hcp, hcpH)  { return Math.max(0, par+strokesFull(hcp,hcpH)+2-g); }
 function aagScore(g, par, hcp, hcpH) { return Math.min(g, par+strokesFull(hcp,hcpH)+2); }
 function strokeBg(stk) {
@@ -478,6 +542,7 @@ function buildGrid() {
   const tbl = document.getElementById('grid-tbl');
   tbl.innerHTML = '';
 
+  // Header
   const thead = document.createElement('thead');
   let thHtml = '<tr><th class="hdr-h">H</th><th class="hdr-par">Par</th><th class="hdr-hcp">Hcp</th>';
   playerNames.forEach((n, i) => {
@@ -487,6 +552,7 @@ function buildGrid() {
   thead.innerHTML = thHtml;
   tbl.appendChild(thead);
 
+  // Body
   const tbody = document.createElement('tbody');
   for (let h = 0; h < 18; h++) {
     const [par, hcpH] = course[h] || [4, h+1];
@@ -541,7 +607,10 @@ function buildGrid() {
   tbody.appendChild(trAag);
 
   tbl.appendChild(tbody);
+
+  // Build Control Scores table
   buildCtrlTable();
+
   recalcAll();
 }
 
@@ -604,7 +673,7 @@ function calcHoleResult(h) {
     }
     return null;
   }
-  if (teamA.length === 0) return null;
+  if (teamA.length === 0) return null; // no split
 
   const nets = [];
   for (let p = 0; p < 5; p++) {
@@ -615,6 +684,7 @@ function calcHoleResult(h) {
     nets.push(isNaN(g)||g<=0 ? null : g - strokesTeam(playerHcps[p], hcpH));
   }
 
+  // All players must have a score
   if ([...teamA, ...teamB].some(p => nets[p] === null)) return null;
 
   const bestA = Math.min(...teamA.map(p => nets[p]));
@@ -635,12 +705,12 @@ function calcHoleResult(h) {
 // ── Recalc all ────────────────────────────────────────────────────────────────
 function recalcAll() {
   let acum = 0;
-  const lobTotals  = [0,0,0,0,0];
-  const suasaTots  = [0,0,0,0,0];
-  const stblTots   = [0,0,0,0,0];
-  const aagTots    = [0,0,0,0,0];
-  const suasaHoles = [0,0,0,0,0];
-  const lobHole    = Array.from({length:18}, ()=>Array(5).fill(null));
+  const lobTotals  = [0,0,0,0,0];  // El Lobito running totals
+  const suasaTots  = [0,0,0,0,0];  // Gross score sums
+  const stblTots   = [0,0,0,0,0];  // Stableford pts
+  const aagTots    = [0,0,0,0,0];  // AAG totals
+  const suasaHoles = [0,0,0,0,0];  // count of holes with scores (for SUASA display)
+  const lobHole    = Array.from({length:18}, ()=>Array(5).fill(null)); // per-hole result (null=sin datos, 0=empate)
 
   for (let h = 0; h < 18; h++) {
     const [par, hcpH] = course[h] || [4, h+1];
@@ -667,11 +737,12 @@ function recalcAll() {
     if (!result) {
       if (row) row.className = h%2===0 ? 'r-even' : 'r-odd';
       if (ind) ind.innerHTML = '';
+      // lobHole[h] stays null for all players
     } else if (result.empate) {
       if (row) row.className = 'r-empate';
       if (ind) ind.innerHTML = '<span class="badge-emp">&#8658;</span>';
       acum = Math.min(acum + 1, 17);
-      for (let p = 0; p < 5; p++) lobHole[h][p] = 0;
+      for (let p = 0; p < 5; p++) lobHole[h][p] = 0; // empate = 0 pts
     } else {
       const mult     = acum + 1;
       const isLobito = result.numWin === 1;
@@ -690,14 +761,14 @@ function recalcAll() {
     }
   }
 
-  // ── Control Scores: resultado parcial por hoyo, TOT = acumulado ────────
+  // ── Update Control Scores table — resultado parcial por hoyo ───────────
   for (let h = 0; h < 18; h++) {
     for (let p = 0; p < 5; p++) {
       const el = document.getElementById(`ctrl_${h}_${p}`);
       if (!el) continue;
       const v = lobHole[h][p];
-      if (v === null)   { el.textContent='—'; el.className=''; }
-      else if (v === 0) { el.textContent='='; el.className=''; }
+      if (v === null)  { el.textContent='—'; el.className=''; }
+      else if (v === 0){ el.textContent='='; el.className=''; }
       else { el.textContent = v>0?'+'+v:String(v); el.className = v>0?'cv-pos':v<0?'cv-neg':''; }
     }
   }
@@ -709,7 +780,7 @@ function recalcAll() {
     el.className   = v>0?'cv-pos':v<0?'cv-neg':'';
   }
 
-  // ── SUASA / Stbl / AAG rows ───────────────────────────────────────────
+  // ── Update SUASA / Stbl / AAG rows ────────────────────────────────────
   for (let p = 0; p < 5; p++) {
     const es = document.getElementById(`suasa_${p}`);
     const et = document.getElementById(`stbl_${p}`);
@@ -876,6 +947,9 @@ function confirmModal() {
 }
 
 document.getElementById('modal-input').addEventListener('keydown', e => { if (e.key==='Enter') confirmModal(); });
+
+function openRules()  { document.getElementById('rules-modal').classList.add('open'); window.scrollTo(0,0); }
+function closeRules() { document.getElementById('rules-modal').classList.remove('open'); }
 
 function showGame() {
   document.getElementById('results').style.display = 'none';
