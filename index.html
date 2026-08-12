@@ -310,7 +310,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20260812-014";
+const VERSION = "20260812-015";
 
 const COURSES = {
   "CNSI": [
@@ -367,8 +367,16 @@ const COURSES = {
   ],
 };
 
-const BASE_WIN  = [0, 12,  3,  2,  3];
-const BASE_LOSE = [0, -3, -2, -3, -12];
+// Puntos por hoyo según formación y acumulado
+// Lobito/Anti-lobito: pot = 12 + 6*acum (solo se duplica el hoyo actual)
+// Pareja/Trío:        pot = 6*(acum+1)   (multiplicador normal)
+function holePts(numWin, acum) {
+  const pot = (numWin === 1 || numWin === 4) ? 12 + 6 * acum : 6 * (acum + 1);
+  return {
+    win:  Math.round(pot / numWin),
+    lose: -Math.round(pot / (5 - numWin))
+  };
+}
 
 let playerNames  = ['','','','',''];
 let playerHcps   = [0,0,0,0,0];
@@ -746,17 +754,18 @@ function recalcAll() {
     } else {
       const mult     = acum + 1;
       const isLobito = result.numWin === 1;
+      const { win: wPts, lose: lPts } = holePts(result.numWin, acum);
       if (row) {
-        row.className = mult > 1 ? 'r-hot' : (h%2===0 ? 'r-even' : 'r-odd');
+        row.className = acum > 0 ? 'r-hot' : (h%2===0 ? 'r-even' : 'r-odd');
       }
       if (ind) {
         let indHtml = '';
-        if (mult > 1)  indHtml += `<span class="badge-mult">×${mult}</span>`;
+        if (acum > 0)  indHtml += `<span class="badge-mult">×${mult}</span>`;
         if (isLobito)  indHtml += '<span class="badge-lob">🐺</span>';
         ind.innerHTML = indHtml;
       }
-      result.winners.forEach(p => { lobHole[h][p] = BASE_WIN[result.numWin]  * mult; lobTotals[p] += lobHole[h][p]; });
-      result.losers .forEach(p => { lobHole[h][p] = BASE_LOSE[result.numWin] * mult; lobTotals[p] += lobHole[h][p]; });
+      result.winners.forEach(p => { lobHole[h][p] = wPts; lobTotals[p] += wPts; });
+      result.losers .forEach(p => { lobHole[h][p] = lPts; lobTotals[p] += lPts; });
       acum = 0;
     }
   }
@@ -815,8 +824,9 @@ function calcAll() {
       acum = Math.min(acum + 1, 17);
     } else {
       const pts = Array(5).fill(0);
-      result.winners.forEach(p => pts[p] = BASE_WIN[result.numWin]  * mult);
-      result.losers .forEach(p => pts[p] = BASE_LOSE[result.numWin] * mult);
+      const { win: wPts2, lose: lPts2 } = holePts(result.numWin, acum);
+      result.winners.forEach(p => pts[p] = wPts2);
+      result.losers .forEach(p => pts[p] = lPts2);
       holeData.push({ empate:false, result, pts, mult, nets:result.nets });
       pts.forEach((v, i) => totals[i] += v);
       acum = 0;
