@@ -246,7 +246,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20260812-011";
+const VERSION = "20260812-013";
 
 const COURSES = {
   "CNSI": [
@@ -319,7 +319,7 @@ const LS_KEY = 'ellobito2_state';
 // ── HCP helpers ──────────────────────────────────────────────────────────────
 function hcp85(hcp)             { return Math.round(hcp * 0.85); }
 function strokesTeam(hcp, hcpH) { const h85=hcp85(hcp); return Math.floor(h85/18)+(h85%18>=hcpH?1:0); }
-function strokesFull(hcp, hcpH) { return Math.floor(hcp/18)+(hcp%18>=hcpH?1:0); }  // HCP 100% (SUASA/Stbl/AAG)
+function strokesFull(hcp, hcpH) { return Math.floor(hcp/18)+(hcp%18>=hcpH?1:0); }
 function stblPts(g, par, hcp, hcpH)  { return Math.max(0, par+strokesFull(hcp,hcpH)+2-g); }
 function aagScore(g, par, hcp, hcpH) { return Math.min(g, par+strokesFull(hcp,hcpH)+2); }
 function strokeBg(stk) {
@@ -478,7 +478,6 @@ function buildGrid() {
   const tbl = document.getElementById('grid-tbl');
   tbl.innerHTML = '';
 
-  // Header
   const thead = document.createElement('thead');
   let thHtml = '<tr><th class="hdr-h">H</th><th class="hdr-par">Par</th><th class="hdr-hcp">Hcp</th>';
   playerNames.forEach((n, i) => {
@@ -488,7 +487,6 @@ function buildGrid() {
   thead.innerHTML = thHtml;
   tbl.appendChild(thead);
 
-  // Body
   const tbody = document.createElement('tbody');
   for (let h = 0; h < 18; h++) {
     const [par, hcpH] = course[h] || [4, h+1];
@@ -543,10 +541,7 @@ function buildGrid() {
   tbody.appendChild(trAag);
 
   tbl.appendChild(tbody);
-
-  // Build Control Scores table
   buildCtrlTable();
-
   recalcAll();
 }
 
@@ -601,7 +596,15 @@ function calcHoleResult(h) {
 
   const teamA = [], teamB = [];
   for (let p = 0; p < 5; p++) (teams[h][p] ? teamA : teamB).push(p);
-  if (teamA.length === 0 || teamB.length === 0) return null; // no split
+
+  // Todos los ✓ marcados = empate general (si todos tienen score)
+  if (teamB.length === 0) {
+    if (teamA.length === 5 && teamA.every(p => (scores[h][p]||'').trim() !== '')) {
+      return { empate: true, nets: [] };
+    }
+    return null;
+  }
+  if (teamA.length === 0) return null;
 
   const nets = [];
   for (let p = 0; p < 5; p++) {
@@ -612,7 +615,6 @@ function calcHoleResult(h) {
     nets.push(isNaN(g)||g<=0 ? null : g - strokesTeam(playerHcps[p], hcpH));
   }
 
-  // All players must have a score
   if ([...teamA, ...teamB].some(p => nets[p] === null)) return null;
 
   const bestA = Math.min(...teamA.map(p => nets[p]));
@@ -633,12 +635,12 @@ function calcHoleResult(h) {
 // ── Recalc all ────────────────────────────────────────────────────────────────
 function recalcAll() {
   let acum = 0;
-  const lobTotals  = [0,0,0,0,0];  // El Lobito running totals
-  const suasaTots  = [0,0,0,0,0];  // Gross score sums
-  const stblTots   = [0,0,0,0,0];  // Stableford pts
-  const aagTots    = [0,0,0,0,0];  // AAG totals
-  const suasaHoles = [0,0,0,0,0];  // count of holes with scores (for SUASA display)
-  const lobRun     = Array.from({length:18}, ()=>Array(5).fill(null)); // running El Lobito per hole
+  const lobTotals  = [0,0,0,0,0];
+  const suasaTots  = [0,0,0,0,0];
+  const stblTots   = [0,0,0,0,0];
+  const aagTots    = [0,0,0,0,0];
+  const suasaHoles = [0,0,0,0,0];
+  const lobHole    = Array.from({length:18}, ()=>Array(5).fill(null));
 
   for (let h = 0; h < 18; h++) {
     const [par, hcpH] = course[h] || [4, h+1];
@@ -665,13 +667,11 @@ function recalcAll() {
     if (!result) {
       if (row) row.className = h%2===0 ? 'r-even' : 'r-odd';
       if (ind) ind.innerHTML = '';
-      // running: carry previous
-      for (let p = 0; p < 5; p++) lobRun[h][p] = h > 0 ? lobRun[h-1][p] : null;
     } else if (result.empate) {
       if (row) row.className = 'r-empate';
       if (ind) ind.innerHTML = '<span class="badge-emp">&#8658;</span>';
       acum = Math.min(acum + 1, 17);
-      for (let p = 0; p < 5; p++) lobRun[h][p] = h > 0 ? (lobRun[h-1][p] ?? 0) : 0;
+      for (let p = 0; p < 5; p++) lobHole[h][p] = 0;
     } else {
       const mult     = acum + 1;
       const isLobito = result.numWin === 1;
@@ -684,24 +684,20 @@ function recalcAll() {
         if (isLobito)  indHtml += '<span class="badge-lob">🐺</span>';
         ind.innerHTML = indHtml;
       }
-      const holePts = Array(5).fill(0);
-      result.winners.forEach(p => { holePts[p] = BASE_WIN[result.numWin]  * mult; lobTotals[p] += holePts[p]; });
-      result.losers .forEach(p => { holePts[p] = BASE_LOSE[result.numWin] * mult; lobTotals[p] += holePts[p]; });
-      for (let p = 0; p < 5; p++) {
-        const prev = h > 0 ? (lobRun[h-1][p] ?? 0) : 0;
-        lobRun[h][p] = prev + holePts[p];
-      }
+      result.winners.forEach(p => { lobHole[h][p] = BASE_WIN[result.numWin]  * mult; lobTotals[p] += lobHole[h][p]; });
+      result.losers .forEach(p => { lobHole[h][p] = BASE_LOSE[result.numWin] * mult; lobTotals[p] += lobHole[h][p]; });
       acum = 0;
     }
   }
 
-  // ── Update Control Scores table ────────────────────────────────────────
+  // ── Control Scores: resultado parcial por hoyo, TOT = acumulado ────────
   for (let h = 0; h < 18; h++) {
     for (let p = 0; p < 5; p++) {
       const el = document.getElementById(`ctrl_${h}_${p}`);
       if (!el) continue;
-      const v = lobRun[h][p];
-      if (v === null) { el.textContent='—'; el.className=''; }
+      const v = lobHole[h][p];
+      if (v === null)   { el.textContent='—'; el.className=''; }
+      else if (v === 0) { el.textContent='='; el.className=''; }
       else { el.textContent = v>0?'+'+v:String(v); el.className = v>0?'cv-pos':v<0?'cv-neg':''; }
     }
   }
@@ -713,7 +709,7 @@ function recalcAll() {
     el.className   = v>0?'cv-pos':v<0?'cv-neg':'';
   }
 
-  // ── Update SUASA / Stbl / AAG rows ────────────────────────────────────
+  // ── SUASA / Stbl / AAG rows ───────────────────────────────────────────
   for (let p = 0; p < 5; p++) {
     const es = document.getElementById(`suasa_${p}`);
     const et = document.getElementById(`stbl_${p}`);
