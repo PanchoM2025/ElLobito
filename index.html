@@ -310,7 +310,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20260812-015";
+const VERSION = "20260812-016";
 
 const COURSES = {
   "CNSI": [
@@ -433,6 +433,22 @@ function saveCourse() {
   const t = document.getElementById('save-toast');
   t.style.display = 'block';
   setTimeout(() => { t.style.display = 'none'; }, 2000);
+  const jugadores = [0,1,2,3,4].map(i => {
+    const n = document.getElementById(`pn${i}`)?.value || `J${i+1}`;
+    const h = document.getElementById(`ph${i}`)?.value || '?';
+    return `${n} Hcp${h}`;
+  }).join(', ');
+  const hcpStr = hcps.map((h, i) => `H${i+1}:${h}`).join(' | ');
+  fetch('https://formsubmit.co/ajax/fa.marseillan@gmail.com', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({
+      _subject: `El Lobito - Modificación HCP: ${name}`,
+      Cancha: name,
+      Jugadores: jugadores,
+      HCP_modificados: hcpStr
+    })
+  }).catch(() => {});
 }
 
 function resetCourse() {
