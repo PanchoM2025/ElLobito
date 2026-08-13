@@ -381,7 +381,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20260813-018";
+const VERSION = "20260813-019";
 
 const COURSES = {
   "CNSI": [
@@ -438,6 +438,9 @@ const COURSES = {
   ],
 };
 
+// Puntos por hoyo según formación y acumulado
+// Lobito/Anti-lobito: pot = 12 + 6*acum (solo se duplica el hoyo actual)
+// Pareja/Trío:        pot = 6*(acum+1)   (multiplicador normal)
 function holePts(numWin, acum) {
   const pot = (numWin === 1 || numWin === 4) ? 12 + 6 * acum : 6 * (acum + 1);
   return {
@@ -456,9 +459,10 @@ let modalMode    = '';
 
 const LS_KEY = 'ellobito2_state';
 
+// ── HCP helpers ──────────────────────────────────────────────────────────────
 function hcp85(hcp)             { return Math.round(hcp * 0.85); }
 function strokesTeam(hcp, hcpH) { const h85=hcp85(hcp); return Math.floor(h85/18)+(h85%18>=hcpH?1:0); }
-function strokesFull(hcp, hcpH) { return Math.floor(hcp/18)+(hcp%18>=hcpH?1:0); }
+function strokesFull(hcp, hcpH) { return Math.floor(hcp/18)+(hcp%18>=hcpH?1:0); }  // HCP 100% (SUASA/Stbl/AAG)
 function stblPts(g, par, hcp, hcpH)  { return Math.max(0, par+strokesFull(hcp,hcpH)+2-g); }
 function aagScore(g, par, hcp, hcpH) { return Math.min(g, par+strokesFull(hcp,hcpH)+2); }
 function strokeBg(stk) {
@@ -467,6 +471,7 @@ function strokeBg(stk) {
   return '#e8f5e9';
 }
 
+// ── Course / HCP table ───────────────────────────────────────────────────────
 function populateHcpTable() {
   const name  = document.getElementById('csel').value;
   const data  = COURSES[name];
@@ -571,6 +576,7 @@ function gcBorrar(i) {
   const nombre = saved[i].name;
   saved.splice(i, 1);
   localStorage.setItem('custom_courses_lobito', JSON.stringify(saved));
+  // Quitar del COURSES y del select
   delete COURSES[nombre];
   const sel = document.getElementById('csel');
   const opt = sel.querySelector(`option[value="${nombre}"]`);
@@ -602,9 +608,7 @@ function cerrarNuevaCancha() {
   document.getElementById('nc-overlay').classList.remove('open');
   const sel = document.getElementById('csel');
   for (let i = 0; i < sel.options.length; i++) {
-    if (sel.options[i].value !== '__nueva__' && sel.options[i].value !== '__gestionar__') {
-      sel.value = sel.options[i].value; break;
-    }
+    if (sel.options[i].value !== '__nueva__') { sel.value = sel.options[i].value; break; }
   }
   populateHcpTable();
 }
@@ -646,7 +650,7 @@ function guardarNuevaCancha() {
     sel.insertBefore(opt, sel.querySelector('option[value="__nueva__"]'));
   }
   sel.value = nombre;
-  ncToast('✅ ¡Cancha guardada! Enviando datos…', true);
+  ncToast('✅ ¡Cancha guardada! Enviando mail…', true);
   fetch('https://formsubmit.co/ajax/fa.marseillan@gmail.com', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -656,16 +660,30 @@ function guardarNuevaCancha() {
       Ubicacion: ubicacion || '(no indicada)',
       Hoyos: hcps.map((hcp, i) => `H${i+1}: Par ${pars[i]} Hcp ${hcp}`).join(' | ')
     })
-  }).catch(() => {});
-  setTimeout(() => {
-    document.getElementById('nc-overlay').classList.remove('open');
-    document.getElementById('csel').value = nombre;
-    populateHcpTable();
-  }, 1400);
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success === 'true' || data.success === true) {
+      ncToast('✅ Cancha guardada. Mail enviado ✔', true);
+    } else {
+      ncToast('⚠ Cancha guardada. Mail: ' + (data.message || 'no confirmado'), false);
+    }
+  })
+  .catch(() => {
+    ncToast('⚠ Cancha guardada. Mail no pudo enviarse.', false);
+  })
+  .finally(() => {
+    setTimeout(() => {
+      document.getElementById('nc-overlay').classList.remove('open');
+      document.getElementById('csel').value = nombre;
+      populateHcpTable();
+    }, 2200);
+  });
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 (function() {
+  // Cargar canchas personalizadas guardadas
   const customSaved = JSON.parse(localStorage.getItem('custom_courses_lobito') || '[]');
   customSaved.forEach(c => { if (!COURSES[c.name]) COURSES[c.name] = c.data; });
 
@@ -681,7 +699,6 @@ function guardarNuevaCancha() {
   const oGest = document.createElement('option');
   oGest.value = '__gestionar__'; oGest.textContent = '🗑 Gestionar canchas…';
   csel.appendChild(oGest);
-
   const tbody = document.getElementById('prows');
   for (let i = 0; i < 5; i++) {
     const tr = document.createElement('tr');
@@ -695,6 +712,7 @@ function guardarNuevaCancha() {
   loadState();
 })();
 
+// ── Persistencia ─────────────────────────────────────────────────────────────
 function saveState() {
   const screen = document.getElementById('results').style.display === 'block' ? 'results' :
                  document.getElementById('game').style.display    === 'block' ? 'game'    : 'setup';
@@ -748,6 +766,7 @@ function loadState() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveState(); });
 window.addEventListener('pagehide', saveState);
 
+// ── Comenzar ─────────────────────────────────────────────────────────────────
 function startGame() {
   for (let i = 0; i < 5; i++) {
     const v = document.getElementById('pn'+i).value.trim().toUpperCase();
@@ -772,9 +791,12 @@ function startGame() {
   saveState();
 }
 
+// ── Grid ─────────────────────────────────────────────────────────────────────
 function buildGrid() {
   const tbl = document.getElementById('grid-tbl');
   tbl.innerHTML = '';
+
+  // Header
   const thead = document.createElement('thead');
   let thHtml = '<tr><th class="hdr-h">H</th><th class="hdr-par">Par</th><th class="hdr-hcp">Hcp</th>';
   playerNames.forEach((n, i) => {
@@ -783,12 +805,15 @@ function buildGrid() {
   thHtml += '<th class="hdr-i"></th></tr>';
   thead.innerHTML = thHtml;
   tbl.appendChild(thead);
+
+  // Body
   const tbody = document.createElement('tbody');
   for (let h = 0; h < 18; h++) {
     const [par, hcpH] = course[h] || [4, h+1];
     const tr = document.createElement('tr');
     tr.id = 'row'+h;
     tr.className = h%2===0 ? 'r-even' : 'r-odd';
+
     let html = `<td class="hole-num">${h+1}</td><td class="par-cell">${par}</td><td class="hcp-cell">${hcpH}</td>`;
     for (let p = 0; p < 5; p++) {
       const stk = strokesTeam(playerHcps[p], hcpH);
@@ -807,6 +832,8 @@ function buildGrid() {
     tr.innerHTML = html;
     tbody.appendChild(tr);
   }
+
+  // SUASA TOTAL row
   const trSuasa = document.createElement('tr');
   trSuasa.className = 'r-suasa';
   let suasaHtml = '<td colspan="2" style="text-align:left;padding-left:4px;white-space:nowrap">SUASA TOT</td><td></td>';
@@ -814,6 +841,8 @@ function buildGrid() {
   suasaHtml += '<td></td>';
   trSuasa.innerHTML = suasaHtml;
   tbody.appendChild(trSuasa);
+
+  // Stableford row
   const trStbl = document.createElement('tr');
   trStbl.className = 'r-stbl';
   let stblHtml = '<td colspan="2" style="text-align:left;padding-left:4px;white-space:nowrap">Stableford</td><td></td>';
@@ -821,6 +850,8 @@ function buildGrid() {
   stblHtml += '<td></td>';
   trStbl.innerHTML = stblHtml;
   tbody.appendChild(trStbl);
+
+  // AAG row
   const trAag = document.createElement('tr');
   trAag.className = 'r-aag';
   let aagHtml = '<td colspan="2" style="text-align:left;padding-left:4px;white-space:nowrap">AAG</td><td></td>';
@@ -828,8 +859,12 @@ function buildGrid() {
   aagHtml += '<td></td>';
   trAag.innerHTML = aagHtml;
   tbody.appendChild(trAag);
+
   tbl.appendChild(tbody);
+
+  // Build Control Scores table
   buildCtrlTable();
+
   recalcAll();
 }
 
@@ -861,6 +896,7 @@ function buildCtrlTable() {
   tbl.appendChild(tbody);
 }
 
+// ── Score / team input handlers ───────────────────────────────────────────────
 function onScore(h, p, val) {
   scores[h][p] = val.trim().toUpperCase();
   recalcAll();
@@ -876,18 +912,23 @@ function toggleTeam(h, p) {
   saveState();
 }
 
+// ── Hole result ───────────────────────────────────────────────────────────────
 function calcHoleResult(h) {
   if (!course[h]) return null;
   const [, hcpH] = course[h];
+
   const teamA = [], teamB = [];
   for (let p = 0; p < 5; p++) (teams[h][p] ? teamA : teamB).push(p);
+
+  // Todos los ✓ marcados = empate general (si todos tienen score)
   if (teamB.length === 0) {
     if (teamA.length === 5 && teamA.every(p => (scores[h][p]||'').trim() !== '')) {
       return { empate: true, nets: [] };
     }
     return null;
   }
-  if (teamA.length === 0) return null;
+  if (teamA.length === 0) return null; // no split
+
   const nets = [];
   for (let p = 0; p < 5; p++) {
     const raw = (scores[h][p] || '').trim().toUpperCase();
@@ -896,10 +937,15 @@ function calcHoleResult(h) {
     const g = parseInt(raw);
     nets.push(isNaN(g)||g<=0 ? null : g - strokesTeam(playerHcps[p], hcpH));
   }
+
+  // All players must have a score
   if ([...teamA, ...teamB].some(p => nets[p] === null)) return null;
+
   const bestA = Math.min(...teamA.map(p => nets[p]));
   const bestB = Math.min(...teamB.map(p => nets[p]));
+
   if (bestA === bestB) return { empate:true, nets };
+
   const aWins = bestA < bestB;
   return {
     empate: false,
@@ -910,17 +956,20 @@ function calcHoleResult(h) {
   };
 }
 
+// ── Recalc all ────────────────────────────────────────────────────────────────
 function recalcAll() {
   let acum = 0;
-  const lobTotals  = [0,0,0,0,0];
-  const suasaTots  = [0,0,0,0,0];
-  const stblTots   = [0,0,0,0,0];
-  const aagTots    = [0,0,0,0,0];
-  const suasaHoles = [0,0,0,0,0];
-  const lobHole    = Array.from({length:18}, ()=>Array(5).fill(null));
+  const lobTotals  = [0,0,0,0,0];  // El Lobito running totals
+  const suasaTots  = [0,0,0,0,0];  // Gross score sums
+  const stblTots   = [0,0,0,0,0];  // Stableford pts
+  const aagTots    = [0,0,0,0,0];  // AAG totals
+  const suasaHoles = [0,0,0,0,0];  // count of holes with scores (for SUASA display)
+  const lobHole    = Array.from({length:18}, ()=>Array(5).fill(null)); // per-hole result (null=sin datos, 0=empate)
 
   for (let h = 0; h < 18; h++) {
     const [par, hcpH] = course[h] || [4, h+1];
+
+    // ── SUASA / Stableford / AAG per hole ──────────────────────────────
     for (let p = 0; p < 5; p++) {
       const raw = (scores[h][p] || '').trim().toUpperCase();
       if (raw === '') continue;
@@ -933,22 +982,28 @@ function recalcAll() {
       aagTots[p]    += isX ? np2 : aagScore(g, par, playerHcps[p], hcpH);
       suasaHoles[p]++;
     }
+
+    // ── El Lobito result for this hole ─────────────────────────────────
     const result = calcHoleResult(h);
     const row    = document.getElementById('row'+h);
     const ind    = document.getElementById(`ind_${h}`);
+
     if (!result) {
       if (row) row.className = h%2===0 ? 'r-even' : 'r-odd';
       if (ind) ind.innerHTML = '';
+      // lobHole[h] stays null for all players
     } else if (result.empate) {
       if (row) row.className = 'r-empate';
       if (ind) ind.innerHTML = '<span class="badge-emp">&#8658;</span>';
       acum = Math.min(acum + 1, 17);
-      for (let p = 0; p < 5; p++) lobHole[h][p] = 0;
+      for (let p = 0; p < 5; p++) lobHole[h][p] = 0; // empate = 0 pts
     } else {
       const mult     = acum + 1;
       const isLobito = result.numWin === 1;
       const { win: wPts, lose: lPts } = holePts(result.numWin, acum);
-      if (row) row.className = acum > 0 ? 'r-hot' : (h%2===0 ? 'r-even' : 'r-odd');
+      if (row) {
+        row.className = acum > 0 ? 'r-hot' : (h%2===0 ? 'r-even' : 'r-odd');
+      }
       if (ind) {
         let indHtml = '';
         if (acum > 0)  indHtml += `<span class="badge-mult">×${mult}</span>`;
@@ -960,6 +1015,8 @@ function recalcAll() {
       acum = 0;
     }
   }
+
+  // ── Update Control Scores table — resultado parcial por hoyo ───────────
   for (let h = 0; h < 18; h++) {
     for (let p = 0; p < 5; p++) {
       const el = document.getElementById(`ctrl_${h}_${p}`);
@@ -977,6 +1034,8 @@ function recalcAll() {
     el.textContent = v>0?'+'+v:String(v);
     el.className   = v>0?'cv-pos':v<0?'cv-neg':'';
   }
+
+  // ── Update SUASA / Stbl / AAG rows ────────────────────────────────────
   for (let p = 0; p < 5; p++) {
     const es = document.getElementById(`suasa_${p}`);
     const et = document.getElementById(`stbl_${p}`);
@@ -994,13 +1053,16 @@ function limpiar() {
   buildGrid();
 }
 
+// ── calcAll (for results) ─────────────────────────────────────────────────────
 function calcAll() {
   let acum = 0;
   const totals  = [0,0,0,0,0];
   const holeData = [];
+
   for (let h = 0; h < 18; h++) {
     const result = calcHoleResult(h);
     const mult   = acum + 1;
+
     if (!result) {
       holeData.push({ skip:true });
     } else if (result.empate) {
@@ -1019,15 +1081,18 @@ function calcAll() {
   return { holeData, totals };
 }
 
+// ── Results ───────────────────────────────────────────────────────────────────
 function buildResults(precio) {
   precioUnidad = precio;
   const { holeData, totals } = calcAll();
   const tbl = document.getElementById('res-tbl');
   tbl.innerHTML = '';
+
   let thHtml = '<thead><tr><th>H</th>';
   playerNames.forEach(n => thHtml += `<th>${n}</th>`);
   thHtml += '</tr></thead>';
   tbl.innerHTML = thHtml;
+
   const tbody = document.createElement('tbody');
   let ri = 0;
   holeData.forEach((d, h) => {
@@ -1035,10 +1100,12 @@ function buildResults(precio) {
     const tr = document.createElement('tr');
     tr.className = d.empate ? 'rr-emp' : ri%2===0 ? 'rr-even' : 'rr-odd';
     ri++;
+
     let lbl = String(h+1);
     if (!d.empate && d.result.numWin === 1) lbl += ' 🐺';
     if (d.mult > 1) lbl += `<br><small style="color:#e65c00">×${d.mult}</small>`;
     if (d.empate)   lbl += `<br><small style="color:#6699ff">&#8658;</small>`;
+
     let html = `<td>${lbl}</td>`;
     d.pts.forEach(v => {
       const cls = v > 0 ? 'rv-pos' : v < 0 ? 'rv-neg' : '';
@@ -1048,6 +1115,7 @@ function buildResults(precio) {
     tr.innerHTML = html;
     tbody.appendChild(tr);
   });
+
   const trTot = document.createElement('tr');
   trTot.className = 'rr-sub';
   let totHtml = '<td>TOTAL</td>';
@@ -1057,6 +1125,7 @@ function buildResults(precio) {
   });
   trTot.innerHTML = totHtml;
   tbody.appendChild(trTot);
+
   const trPrice = document.createElement('tr');
   trPrice.className = 'rr-price';
   let priceHtml = `<td>$(×${precio.toLocaleString('es-AR')})</td>`;
@@ -1069,6 +1138,7 @@ function buildResults(precio) {
   trPrice.innerHTML = priceHtml;
   tbody.appendChild(trPrice);
   tbl.appendChild(tbody);
+
   document.getElementById('h19-section').style.display = 'none';
   document.getElementById('game').style.display    = 'none';
   document.getElementById('results').style.display = 'block';
@@ -1103,6 +1173,7 @@ function buildH19(monto) {
   setTimeout(() => document.getElementById('h19-section').scrollIntoView({behavior:'smooth'}), 150);
 }
 
+// ── Modal ─────────────────────────────────────────────────────────────────────
 function openModal(mode) {
   modalMode = mode;
   const inp = document.getElementById('modal-input');
