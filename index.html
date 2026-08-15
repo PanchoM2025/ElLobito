@@ -20,18 +20,50 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="El Lobito">
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    document.title = '🐺 El Lobito';
-    document.getElementById('main-title').textContent = '🐺 El Lobito';
-    fetch(location.pathname + '?_nc=' + Date.now())
-      .then(r => r.text())
-      .then(html => {
-        const m = html.match(/const VERSION\s*=\s*"([^"]+)"/);
-        if (m && m[1] !== VERSION) { location.reload(true); return; }
-        loadState();
-      })
-      .catch(() => { loadState(); });
-  });
+// ── Google Analytics offline queue ──────────────────────────────────────────
+const GA_MP_URL = 'https://www.google-analytics.com/mp/collect'
+               + '?measurement_id=G-9YTFN35LGM&api_secret=bjgH2-XJRRyc4lat6TVl-w';
+const GA_QUEUE_KEY = 'ga_queue_lobito';
+const GA_CLIENT_KEY = 'ga_client_lobito';
+
+function gaClientId() {
+  let id = localStorage.getItem(GA_CLIENT_KEY);
+  if (!id) { id = Math.random().toString(36).slice(2) + '.' + Date.now(); localStorage.setItem(GA_CLIENT_KEY, id); }
+  return id;
+}
+
+function gaEnqueue(eventName, params) {
+  const queue = JSON.parse(localStorage.getItem(GA_QUEUE_KEY) || '[]');
+  queue.push({ name: eventName, params: Object.assign({ timestamp_micros: Date.now() * 1000 }, params) });
+  localStorage.setItem(GA_QUEUE_KEY, JSON.stringify(queue));
+}
+
+function gaFlush() {
+  const queue = JSON.parse(localStorage.getItem(GA_QUEUE_KEY) || '[]');
+  if (!queue.length) return;
+  fetch(GA_MP_URL, {
+    method: 'POST',
+    body: JSON.stringify({ client_id: gaClientId(), events: queue })
+  }).then(r => { if (r.ok || r.status === 204) localStorage.removeItem(GA_QUEUE_KEY); })
+    .catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.title = '🐺 El Lobito';
+  document.getElementById('main-title').textContent = '🐺 El Lobito';
+  gaEnqueue('app_open', { app: 'ElLobito' });
+  gaFlush();
+  fetch(location.pathname + '?_nc=' + Date.now())
+    .then(r => r.text())
+    .then(html => {
+      const m = html.match(/const VERSION\s*=\s*"([^"]+)"/);
+      if (m && m[1] !== VERSION) { location.reload(true); return; }
+      loadState();
+    })
+    .catch(() => { loadState(); });
+});
+
+window.addEventListener('online', gaFlush);
 </script>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
@@ -394,7 +426,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20260813-022";
+const VERSION = "20260813-023";
 
 const COURSES = {
   "CNSI": [
