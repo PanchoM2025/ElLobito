@@ -70,7 +70,7 @@ input.hv:focus { outline:2px solid #ffd700; }
 
 /* ── GAME ── */
 #game { display:none; padding:6px 4px 90px; }
-#game-title { font-size:14px; color:#ffd700; text-align:center; margin-bottom:4px; letter-spacing:.5px; }
+#game-title { display:none; }
 .grid-hint  { text-align:center; font-size:11px; color:#4a7a4a; margin-bottom:6px; }
 .grid-wrap  { overflow-x:auto; }
 table.grid  { border-collapse:collapse; width:100%; }
@@ -164,6 +164,11 @@ tr.rr-h19   td { background:#3a2800; color:#ffd700; font-weight:bold; border-top
 .modal-btns button { flex:1; padding:11px; border:none; border-radius:7px; font-size:14px; font-weight:bold; cursor:pointer; }
 .m-ok     { background:#ffd700; color:#1a3a1a; }
 .m-cancel { background:#2d6a2d; color:#fff; }
+
+/* ── STICKY GRID HEADER ── */
+#sticky-grid-header { display:none; position:fixed; left:0; right:0; top:0; z-index:100; overflow:hidden; background:#0d3318; border-bottom:2px solid #3d8a3d; }
+#sticky-grid-header .sh-inner { overflow:hidden; }
+#sticky-grid-header table.grid { margin:0; }
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
 input[type="number"] { -moz-appearance:textfield; }
@@ -381,7 +386,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20260813-019";
+const VERSION = "20260813-021";
 
 const COURSES = {
   "CNSI": [
@@ -458,6 +463,69 @@ let precioUnidad = 0;
 let modalMode    = '';
 
 const LS_KEY = 'ellobito2_state';
+
+
+// ── STICKY HEADER GRID ────────────────────────────────────────────────────────
+function setupStickyGridHeader() {
+  const old = document.getElementById('sticky-grid-header');
+  if (old) old.remove();
+
+  const tbl   = document.getElementById('grid-tbl');
+  if (!tbl) return;
+  const thead = tbl.querySelector('thead');
+  const wrap  = tbl.closest('.grid-wrap');
+  if (!thead || !wrap) return;
+
+  const fixed = document.createElement('div');
+  fixed.id = 'sticky-grid-header';
+  const inner = document.createElement('div');
+  inner.className = 'sh-inner';
+  const cloneTbl = document.createElement('table');
+  cloneTbl.className = 'grid';
+  cloneTbl.appendChild(thead.cloneNode(true));
+  inner.appendChild(cloneTbl);
+  fixed.appendChild(inner);
+  document.body.appendChild(fixed);
+
+  let raf = null;
+  function syncWidths() {
+    const wrapRect = wrap.getBoundingClientRect();
+    fixed.style.left  = wrapRect.left  + 'px';
+    fixed.style.width = wrapRect.width + 'px';
+    inner.style.width = wrapRect.width + 'px';
+    // Leer anchos de la primera fila tbody (refleja el ancho real renderizado)
+    const firstRow = tbl.querySelector('tbody tr');
+    const srcCells = firstRow ? firstRow.querySelectorAll('td') : thead.querySelectorAll('th');
+    const cloneThs = cloneTbl.querySelectorAll('th');
+    let totalW = 0;
+    srcCells.forEach((cell, i) => {
+      const w = cell.getBoundingClientRect().width;
+      if (cloneThs[i]) cloneThs[i].style.width = w + 'px';
+      totalW += w;
+    });
+    cloneTbl.style.width = totalW + 'px';
+    inner.scrollLeft = wrap.scrollLeft;
+  }
+  function update() {
+    if (document.getElementById('game').style.display === 'none') {
+      fixed.style.display = 'none'; return;
+    }
+    const theadBottom = thead.getBoundingClientRect().bottom;
+    if (theadBottom <= 0) {
+      syncWidths();
+      fixed.style.display = 'block';
+    } else {
+      fixed.style.display = 'none';
+    }
+  }
+  window.addEventListener('scroll', () => {
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(update);
+  }, { passive: true });
+  wrap.addEventListener('scroll', () => {
+    inner.scrollLeft = wrap.scrollLeft;
+  }, { passive: true });
+}
 
 // ── HCP helpers ──────────────────────────────────────────────────────────────
 function hcp85(hcp)             { return Math.round(hcp * 0.85); }
@@ -866,6 +934,7 @@ function buildGrid() {
   buildCtrlTable();
 
   recalcAll();
+  setupStickyGridHeader();
 }
 
 function buildCtrlTable() {
