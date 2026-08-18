@@ -11,6 +11,9 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>El Lobito</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -20,6 +23,21 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="El Lobito">
 <script>
+// ── Service Worker inline (PWA) ──────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  const swCode = `self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',e=>e.respondWith(fetch(e.request)));`;
+  const swBlob = new Blob([swCode], {type: 'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+}
+
+// ── Wake Lock (evita que se apague la pantalla) ──────────────────────────────
+let wakeLock = null;
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+  }
+}
+
 // ── Google Analytics offline queue ──────────────────────────────────────────
 const GA_MP_URL = 'https://www.google-analytics.com/mp/collect'
                + '?measurement_id=G-9YTFN35LGM&api_secret=bjgH2-XJRRyc4lat6TVl-w';
@@ -53,11 +71,15 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('main-title').textContent = '🐺 El Lobito';
   gaEnqueue('app_open', { app: 'ElLobito' });
   gaFlush();
-  fetch(location.pathname + '?_nc=' + Date.now())
+  requestWakeLock();
+  fetch(location.pathname + '?_nc=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
     .then(html => {
       const m = html.match(/const VERSION\s*=\s*"([^"]+)"/);
-      if (m && m[1] !== VERSION) { location.reload(true); return; }
+      if (m && m[1] !== VERSION) {
+        location.replace(location.pathname + '?_v=' + m[1] + '&_t=' + Date.now());
+        return;
+      }
       loadState();
     })
     .catch(() => { loadState(); });
@@ -172,7 +194,8 @@ tr.cr-total td { background:#0d3318; color:#ffd700; font-weight:bold; font-size:
 .btn-calc    { background:#ffd700; color:#1a3a1a; }
 .btn-h19     { background:#87ceeb; color:#1a3a1a; }
 .btn-limpiar { background:#2d6a2d; color:#e8ffe8; }
-.btn-nueva   { background:#1a3a1a; color:#a8d8a8; }
+.btn-nueva    { background:#1a3a1a; color:#a8d8a8; }
+.btn-regresar { background:#3a2800; color:#ffd700; }
 
 /* ── RESULTS ── */
 #results { display:none; padding:12px 6px 80px; }
@@ -294,7 +317,7 @@ input[type="number"] { -moz-appearance:textfield; }
     <button class="btn-reset" onclick="resetCourse()">&#x21A9; Restablecer Hcp</button>
   </div>
   <div id="save-toast">&#x2705; Guardado</div>
-  <button class="btn-start" onclick="startGame()">COMENZAR &nbsp;&#9658;</button>
+  <button class="btn-start" onclick="startGame()">ANOTAR &nbsp;&#9658;</button>
   <button class="btn-rules-setup" onclick="openRules()">📋 Reglas del juego</button>
 </div>
 
@@ -350,8 +373,8 @@ input[type="number"] { -moz-appearance:textfield; }
     <button class="btn-calc"    onclick="openModal('calc')">VALORIZAR</button>
     <button class="btn-h19"     onclick="openModal('h19')">HOYO 19 🍺</button>
     <button class="btn-limpiar" onclick="limpiar()">LIMPIAR</button>
-    <button class="btn-rules-game" onclick="openRules()">📋</button>
-    <button class="btn-nueva"   onclick="newGame()">&#x21A9; NUEVA</button>
+    <button class="btn-regresar" onclick="regresar()">&#9664; REGRESAR</button>
+    <button class="btn-nueva"    onclick="newGame()">&#x21A9; NUEVA</button>
   </div>
 </div>
 
@@ -426,7 +449,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20260813-023";
+const VERSION = "20260818-001";
 
 const COURSES = {
   "CNSI": [
@@ -501,6 +524,7 @@ let scores       = Array.from({length:18}, () => Array(5).fill(''));
 let teams        = Array.from({length:18}, () => Array(5).fill(false));
 let precioUnidad = 0;
 let modalMode    = '';
+let isResuming   = false;
 
 const LS_KEY = 'ellobito2_state';
 
@@ -871,7 +895,10 @@ function loadState() {
   } catch(e) {}
 }
 
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveState(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveState();
+  if (document.visibilityState === 'visible') requestWakeLock();
+});
 window.addEventListener('pagehide', saveState);
 
 // ── Comenzar ─────────────────────────────────────────────────────────────────
@@ -888,9 +915,12 @@ function startGame() {
     const hv = parseInt(document.getElementById(`hv${h}`).value);
     return [par, isNaN(hv)||hv<1||hv>18 ? base[h][1] : hv];
   });
-  scores = Array.from({length:18}, () => Array(5).fill(''));
-  teams  = Array.from({length:18}, () => Array(5).fill(false));
-  precioUnidad = 0;
+  if (!isResuming) {
+    scores = Array.from({length:18}, () => Array(5).fill(''));
+    teams  = Array.from({length:18}, () => Array(5).fill(false));
+    precioUnidad = 0;
+  }
+  isResuming = false;
   document.getElementById('game-title').textContent = '🐺 El Lobito — ' + name;
   buildGrid();
   document.getElementById('setup').style.display   = 'none';
@@ -1321,7 +1351,16 @@ function showGame() {
   document.getElementById('game').style.display    = 'block';
 }
 
+function regresar() {
+  isResuming = true;
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('game').style.display    = 'none';
+  document.getElementById('setup').style.display   = 'block';
+  window.scrollTo(0, 0);
+}
+
 function newGame() {
+  isResuming = false;
   clearState();
   playerNames = ['','','','',''];
   playerHcps  = [0,0,0,0,0];
