@@ -15,7 +15,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>El Lobito</title>
-<link rel="manifest" href="manifest.json?v=20260819">
+<link rel="manifest" id="manifest-link" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <meta name="mobile-web-app-capable" content="yes">
@@ -450,6 +450,8 @@ input[type="number"] { -moz-appearance:textfield; }
 
 <script>
 const VERSION = "20260818-002";
+// Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
+document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
 const COURSES = {
   "CNSI": [
