@@ -449,7 +449,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20260818-002";
+const VERSION = "20260820-001";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -912,7 +912,7 @@ window.addEventListener('pagehide', saveState);
 function startGame() {
   for (let i = 0; i < 5; i++) {
     const v = document.getElementById('pn'+i).value.trim().toUpperCase();
-    playerNames[i] = v || 'J'+(i+1);
+    playerNames[i] = v;
     const h = document.getElementById('ph'+i).value.trim();
     playerHcps[i] = h === '' ? 0 : Math.max(0, Math.min(54, parseInt(h)||0));
   }
