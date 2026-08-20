@@ -870,7 +870,7 @@ function loadState() {
     if (!raw) return;
     const s = JSON.parse(raw);
     if (!s) return;
-    playerNames  = s.playerNames || playerNames;
+    playerNames  = (s.playerNames || playerNames).map((n, i) => (n === 'J'+(i+1)) ? '' : n);
     playerHcps   = s.playerHcps  || playerHcps;
     course       = s.course      || [];
     precioUnidad = s.precioUnidad || 0;
