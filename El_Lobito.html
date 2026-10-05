@@ -78,11 +78,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const m = html.match(/const VERSION\s*=\s*"([^"]+)"/);
       if (m && m[1] !== VERSION) {
         location.replace(location.pathname + '?_v=' + m[1] + '&_t=' + Date.now());
-        return;
       }
-      loadState();
     })
-    .catch(() => { loadState(); });
+    .catch(() => {});
 });
 
 window.addEventListener('online', gaFlush);
@@ -449,64 +447,72 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20260820-001";
+const VERSION = "20261005-002";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
 const COURSES = {
+  "Campo Chico": [
+    [4, 5],[4, 9],[5, 7],[3,15],[5,17],[4,13],[4, 1],[3,11],[4, 3],
+    [4, 4],[3,18],[4, 6],[4, 8],[4, 2],[3,16],[5,10],[5,12],[4,14]
+  ],
+  "CHAPELCO": [
+    [4,13],[4, 5],[5, 9],[4, 7],[3,11],[5, 3],[3,15],[4,17],[4, 1],
+    [5,16],[3, 8],[4, 4],[5,10],[4,14],[3,12],[4, 2],[4,18],[4, 6]
+  ],
   "CNSI": [
     [4, 3],[3,15],[4,17],[4, 9],[4, 5],[5, 1],[4, 7],[3,13],[4,11],
-    [4,14],[4, 6],[5,10],[4,12],[3,2],[5, 8],[4, 4],[3,18],[4,16]
-  ],
-  "Pilara": [
-    [5, 3],[3,13],[4, 5],[4,11],[4,15],[4, 9],[5, 1],[3,17],[4, 7],
-    [4,12],[3,18],[4, 6],[3,14],[5, 2],[4,16],[4,10],[4, 8],[5, 4]
-  ],
-  "Estancias": [
-    [4,11],[4, 3],[4, 7],[4, 9],[3,17],[5,13],[3,15],[4, 5],[4, 1],
-    [4, 2],[4,10],[3,12],[4,16],[5,18],[3, 8],[5,14],[4, 4],[5, 6]
-  ],
-  "Piero (Azul-Blanca)": [
-    [4, 7],[5, 1],[4,13],[4,11],[4, 3],[3,15],[5, 9],[3,17],[4, 5],
-    [5, 8],[3,18],[4,10],[5,12],[4, 2],[4, 6],[4,14],[3,16],[4, 4]
-  ],
-  "Highland": [
-    [4,17],[3,13],[5,11],[4, 1],[5,15],[3, 9],[4, 7],[4, 3],[4, 5],
-    [5,16],[4, 8],[3,14],[4,12],[5,18],[3, 2],[4, 6],[4,10],[4, 4]
-  ],
-  "Lagartos (Agua-Larga)": [
-    [4, 9],[3,17],[3, 3],[4,13],[3,15],[4, 7],[5, 1],[4, 5],[5,11],
-    [3,16],[5,12],[4, 8],[4, 2],[5,10],[3,18],[5, 6],[4,14],[4, 4]
-  ],
-  "Campo Chico": [
-    [4, 1],[4,13],[5, 3],[3, 7],[5, 5],[4,17],[4,15],[3, 9],[4,11],
-    [4, 4],[3,10],[4, 8],[4,14],[4,18],[3,16],[5, 2],[5,12],[4, 6]
-  ],
-  "Hurlingham": [
-    [4, 5],[4, 7],[3,13],[4,11],[5, 1],[5, 9],[3,15],[4, 3],[3,17],
-    [4,14],[5, 4],[3,18],[5, 2],[4, 6],[3,10],[4, 8],[5,16],[4,12]
-  ],
-  "Jockey (Colorada)": [
-    [4, 5],[4,11],[3,17],[5, 9],[4,13],[4, 7],[4, 1],[3,15],[4, 3],
-    [5, 4],[5,12],[3,18],[4, 2],[4, 6],[5,10],[4, 8],[3,16],[4,14]
+    [4,14],[4, 6],[5,10],[4,12],[3, 2],[5, 8],[4, 4],[3,18],[4,16]
   ],
   "CUBA Fatima": [
     [5, 5],[3,15],[4, 1],[5,11],[4, 9],[4, 7],[3,17],[4, 3],[4,13],
     [4,12],[5, 6],[4, 4],[4, 8],[3,16],[4, 2],[4,10],[3,18],[5,14]
   ],
-  "Pinguinos": [
-    [4, 7],[5, 3],[3,17],[4,11],[4, 5],[3,15],[4, 9],[5, 1],[4,13],
-    [4,10],[5, 4],[3,18],[4,14],[3,16],[4,8],[5, 2],[3,12],[5,6]
+  "Cumelén": [
+    [4, 5],[3, 9],[4, 7],[3,17],[4, 3],[5, 1],[4,15],[4,11],[3,13],
+    [4, 6],[3,10],[4, 8],[3,18],[4, 4],[5, 2],[4,16],[4,12],[3,14]
+  ],
+  "Estancias": [
+    [4,11],[4, 3],[4, 7],[4, 9],[3,17],[5,13],[3,15],[4, 5],[4, 1],
+    [4, 2],[4,10],[3,12],[4,16],[5,18],[3, 8],[5,14],[4, 4],[5, 6]
   ],
   "Golfers Country Club": [
     [4, 5],[4, 3],[4,13],[5,17],[3,15],[4, 7],[3, 9],[4,11],[5, 1],
     [4, 6],[4, 4],[5,16],[3,10],[4, 2],[4,12],[4, 8],[3,14],[5,18]
   ],
-  "Cumelen": [
-    [4, 5],[3, 9],[4, 7],[3,17],[4, 3],[5, 1],[4,15],[4,11],[3,13],
-    [4, 6],[3,10],[4, 8],[3,18],[4, 4],[5, 2],[4,16],[4,12],[3,14]
+  "Highland": [
+    [4,17],[3,13],[5,11],[4, 1],[5,15],[3, 9],[4, 7],[4, 3],[4, 5],
+    [5,16],[4, 8],[3,14],[4,12],[5,18],[3, 2],[4, 6],[4,10],[4, 4]
   ],
- "Potrerillo de Larreta": [
+  "Hurlingham": [
+    [4, 7],[4,11],[3,17],[4, 3],[5, 9],[5, 1],[3,15],[4, 5],[3,13],
+    [4,12],[5, 2],[3,16],[5, 8],[4, 4],[3,14],[4,10],[5, 6],[4,18]
+  ],
+  "Jockey (Colorada)": [
+    [4, 5],[4,11],[3,17],[5, 9],[4,13],[4, 7],[4, 1],[3,15],[4, 3],
+    [5, 4],[5,12],[3,18],[4, 2],[4, 6],[5,10],[4, 8],[3,16],[4,14]
+  ],
+  "Lagartos (Agua-Larga)": [
+    [4, 9],[3,17],[3, 3],[4,13],[3,15],[4, 7],[5, 1],[4, 5],[5,11],
+    [3,16],[5,12],[4, 8],[4, 2],[5,10],[3,18],[5, 6],[4,14],[4, 4]
+  ],
+  "Newman": [
+    [4,11],[4,15],[4, 9],[4, 7],[3,17],[4, 1],[5, 5],[3,13],[5, 3],
+    [4, 4],[4,14],[4, 2],[5,12],[3,10],[4,16],[3,18],[5, 8],[4, 6]
+  ],
+  "Piero (Azul-Blanca)": [
+    [4, 7],[5, 1],[4,13],[4,11],[4, 3],[3,15],[5, 9],[3,17],[4, 5],
+    [5, 8],[3,18],[4,10],[5,12],[4, 2],[4, 6],[4,14],[3,16],[4, 4]
+  ],
+  "Pilara": [
+    [5, 3],[3,13],[4, 5],[4,11],[4,15],[4, 9],[5, 1],[3,17],[4, 7],
+    [4,12],[3,18],[4, 6],[3,14],[5, 2],[4,16],[4,10],[4, 8],[5, 4]
+  ],
+  "Pingüinos": [
+    [4, 7],[5, 3],[3,17],[4,11],[4, 5],[3,15],[4, 9],[5, 1],[4,13],
+    [4,10],[5, 4],[3,18],[4,14],[3,16],[4, 8],[5, 2],[3,12],[5, 6]
+  ],
+  "Potrerillo de Larreta": [
     [4,11],[5,13],[3,17],[5, 1],[3, 7],[4, 3],[3,15],[5, 5],[4, 9],
     [4, 2],[4, 6],[4,18],[5,14],[3,16],[4, 4],[3,12],[5, 8],[4,10]
   ],
@@ -858,7 +864,9 @@ function saveState() {
   try { localStorage.setItem(LS_KEY, JSON.stringify({
     playerNames, playerHcps, course,
     courseName: document.getElementById('game-title').textContent,
-    scores, teams, precioUnidad, screen
+    scores, teams, precioUnidad, screen,
+    courseKey: document.getElementById('csel').value,
+    isResuming
   })); } catch(e) {}
 }
 
@@ -882,6 +890,19 @@ function loadState() {
       if (en) en.value = playerNames[i];
       if (eh) eh.value = playerHcps[i] || '';
     }
+    // Restaurar cancha seleccionada y HCP de hoyos usados en la partida
+    const csel = document.getElementById('csel');
+    if (s.courseKey && COURSES[s.courseKey]) {
+      csel.value = s.courseKey;
+      populateHcpTable();
+      if (course.length === 18) course.forEach(([, hv], h) => {
+        const el = document.getElementById('hv' + h);
+        if (el && hv) el.value = hv;
+      });
+    }
+    // Partida en curso: no se pierde aunque haya quedado en la pantalla de setup (Regresar)
+    const hayDatos = scores.some(r => r.some(v => v !== '')) || teams.some(r => r.some(Boolean));
+    isResuming = !!s.isResuming || (s.screen === 'setup' && hayDatos);
     if (s.screen === 'game') {
       if (s.courseName) document.getElementById('game-title').textContent = s.courseName;
       buildGrid();
@@ -1197,6 +1218,7 @@ function limpiar() {
   scores = Array.from({length:18}, () => Array(5).fill(''));
   teams  = Array.from({length:18}, () => Array(5).fill(false));
   buildGrid();
+  saveState();
 }
 
 // ── calcAll (for results) ─────────────────────────────────────────────────────
@@ -1364,9 +1386,11 @@ function regresar() {
   document.getElementById('game').style.display    = 'none';
   document.getElementById('setup').style.display   = 'block';
   window.scrollTo(0, 0);
+  saveState();
 }
 
 function newGame() {
+  if (!confirm('¿Empezar una nueva partida?\nSe borra la tarjeta actual.')) return;
   isResuming = false;
   clearState();
   playerNames = ['','','','',''];
@@ -1381,6 +1405,7 @@ function newGame() {
   document.getElementById('results').style.display = 'none';
   document.getElementById('setup').style.display   = 'block';
   precioUnidad = 0;
+  window.scrollTo(0, 0);
 }
 </script>
 </body>
