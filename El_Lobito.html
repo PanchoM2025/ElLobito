@@ -620,6 +620,8 @@ function strokeBg(stk) {
 function populateHcpTable() {
   const name  = document.getElementById('csel').value;
   const data  = COURSES[name];
+  const tbody0 = document.getElementById('hcp-rows');
+  if (!data) { tbody0.innerHTML = ''; return; }
   const saved = JSON.parse(localStorage.getItem('lob_hcp_' + name) || 'null');
   const hcpVal = h => (saved && saved[h] != null) ? saved[h] : data[h][1];
   const tbody = document.getElementById('hcp-rows');
@@ -639,6 +641,7 @@ function populateHcpTable() {
 
 function saveCourse() {
   const name = document.getElementById('csel').value;
+  if (!COURSES[name]) { alert('Seleccioná una cancha.'); return; }
   const hcps = [];
   for (let h = 0; h < 18; h++) {
     const el  = document.getElementById(`hv${h}`);
@@ -669,6 +672,7 @@ function saveCourse() {
 
 function resetCourse() {
   const name = document.getElementById('csel').value;
+  if (!COURSES[name]) { alert('Seleccioná una cancha.'); return; }
   localStorage.removeItem('lob_hcp_' + name);
   populateHcpTable();
   const t = document.getElementById('save-toast');
@@ -692,12 +696,7 @@ function openGestionar() {
 
 function cerrarGestionar() {
   document.getElementById('gc-overlay').classList.remove('open');
-  const sel = document.getElementById('csel');
-  for (let i = 0; i < sel.options.length; i++) {
-    if (sel.options[i].value !== '__nueva__' && sel.options[i].value !== '__gestionar__') {
-      sel.value = sel.options[i].value; break;
-    }
-  }
+  document.getElementById('csel').value = '';
   populateHcpTable();
 }
 
@@ -751,10 +750,7 @@ function openNuevaCancha() {
 
 function cerrarNuevaCancha() {
   document.getElementById('nc-overlay').classList.remove('open');
-  const sel = document.getElementById('csel');
-  for (let i = 0; i < sel.options.length; i++) {
-    if (sel.options[i].value !== '__nueva__') { sel.value = sel.options[i].value; break; }
-  }
+  document.getElementById('csel').value = '';
   populateHcpTable();
 }
 
@@ -833,6 +829,10 @@ function guardarNuevaCancha() {
   customSaved.forEach(c => { if (!COURSES[c.name]) COURSES[c.name] = c.data; });
 
   const csel = document.getElementById('csel');
+  const oPh = document.createElement('option');
+  oPh.value = ''; oPh.textContent = 'Seleccionar cancha';
+  oPh.disabled = true; oPh.selected = true;
+  csel.appendChild(oPh);
   Object.keys(COURSES).forEach(name => {
     const o = document.createElement('option');
     o.value = o.textContent = name;
@@ -853,6 +853,7 @@ function guardarNuevaCancha() {
       `<td><input class="hcp-in" type="number" id="ph${i}" placeholder="0" min="0" max="54" inputmode="numeric"></td>`;
     tbody.appendChild(tr);
   }
+  csel.value = '';
   populateHcpTable();
   loadState();
 })();
@@ -939,6 +940,7 @@ function startGame() {
   }
   const name = document.getElementById('csel').value;
   const base = COURSES[name];
+  if (!base) { alert('Seleccioná una cancha antes de anotar.'); document.getElementById('csel').focus(); return; }
   course = base.map(([par], h) => {
     const hv = parseInt(document.getElementById(`hv${h}`).value);
     return [par, isNaN(hv)||hv<1||hv>18 ? base[h][1] : hv];
