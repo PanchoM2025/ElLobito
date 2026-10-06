@@ -297,7 +297,7 @@ input[type="number"] { -moz-appearance:textfield; }
   <h1 id="main-title">🐺 El Lobito</h1>
   <div class="field-row">
     <label for="csel">Cancha:</label>
-    <select id="csel" onchange="onCselChange()"></select>
+    <select id="csel" autocomplete="off" onchange="onCselChange()"></select>
   </div>
   <table class="player-tbl">
     <thead><tr><th>Jugador</th><th>Iniciales</th><th>HCP</th></tr></thead>
@@ -447,7 +447,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20261006-001";
+const VERSION = "20261006-002";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -891,9 +891,11 @@ function loadState() {
       if (en) en.value = playerNames[i];
       if (eh) eh.value = playerHcps[i] || '';
     }
-    // Restaurar cancha seleccionada y HCP de hoyos usados en la partida
+    // Restaurar cancha seleccionada y HCP solo si hay partida en curso
     const csel = document.getElementById('csel');
-    if (s.courseKey && COURSES[s.courseKey]) {
+    const enCurso = s.screen === 'game' || s.screen === 'results' ||
+      (s.scores || []).some(r => r.some(v => v !== '')) || (s.teams || []).some(r => r.some(Boolean));
+    if (enCurso && s.courseKey && COURSES[s.courseKey]) {
       csel.value = s.courseKey;
       populateHcpTable();
       if (course.length === 18) course.forEach(([, hv], h) => {
