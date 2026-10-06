@@ -447,7 +447,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20261006-002";
+const VERSION = "20261006-003";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -1409,6 +1409,11 @@ function newGame() {
   document.getElementById('results').style.display = 'none';
   document.getElementById('setup').style.display   = 'block';
   precioUnidad = 0;
+  scores = Array.from({length:18}, () => Array(5).fill(''));
+  teams  = Array.from({length:18}, () => Array(5).fill(false));
+  course = [];
+  document.getElementById('csel').value = '';
+  populateHcpTable();
   window.scrollTo(0, 0);
 }
 </script>
