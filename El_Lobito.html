@@ -126,6 +126,16 @@ input.hv:focus { outline:2px solid #ffd700; }
 .btn-reset { flex:1; padding:9px 8px; background:#3a1a1a; color:#f08080; font-size:13px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; touch-action:manipulation; }
 .btn-reset:active { background:#5a2a2a; }
 #save-toast { display:none; text-align:center; color:#90ee90; font-size:13px; font-weight:bold; margin:-8px 0 10px; }
+.hcp-autor-box {
+  display:none; background:#2a2a0d; border:1px solid #8a7a1a;
+  border-radius:8px; padding:10px 12px; margin:-6px 0 12px;
+}
+.hcp-autor-warn { color:#ffd700; font-size:12px; line-height:1.4; margin:0 0 8px; }
+.hcp-autor-box input {
+  width:100%; background:#e8f5e9; color:#1a3a1a; border:none;
+  border-radius:6px; padding:8px 10px; font-size:14px;
+  -webkit-appearance:none; appearance:none;
+}
 .btn-start { width:100%; padding:15px; background:#2d6a2d; color:#ffd700; font-size:18px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; letter-spacing:1px; touch-action:manipulation; margin-top:8px; }
 
 /* ── GAME ── */
@@ -270,6 +280,16 @@ input[type="number"] { -moz-appearance:textfield; }
 .nc-hole-lbl { color:#a8d8a8; font-size:12px; font-weight:bold; }
 .nc-hole input { background:#e8f5e9; color:#1a3a1a; border:none; border-radius:4px; padding:5px 0; font-size:14px; font-weight:bold; text-align:center; width:100%; -webkit-appearance:none; appearance:none; -moz-appearance:textfield; }
 .nc-hole input::-webkit-inner-spin-button, .nc-hole input::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.nc-autor-box {
+  display:none; background:#2a2a0d; border:1px solid #8a7a1a;
+  border-radius:8px; padding:10px 12px; margin:0 0 10px;
+}
+.nc-autor-warn { color:#ffd700; font-size:12px; line-height:1.4; margin:0 0 8px; }
+.nc-autor-box input {
+  width:100%; background:#e8f5e9; color:#1a3a1a; border:none;
+  border-radius:6px; padding:8px 10px; font-size:14px;
+  -webkit-appearance:none; appearance:none;
+}
 .nc-toast { text-align:center; font-size:13px; font-weight:bold; min-height:28px; padding:4px 0; }
 .nc-btn-row { display:flex; gap:8px; margin-top:8px; }
 .nc-btn-ok { flex:2; padding:12px; background:#2d6a2d; color:#ffd700; font-size:15px; font-weight:bold; border:none; border-radius:8px; cursor:pointer; touch-action:manipulation; }
@@ -310,6 +330,10 @@ input[type="number"] { -moz-appearance:textfield; }
       <tbody id="hcp-rows"></tbody>
     </table>
   </div>
+  <div id="hcp-autor-box" class="hcp-autor-box">
+    <p class="hcp-autor-warn" id="hcp-autor-warn"></p>
+    <input type="text" id="hcp-autor" placeholder="Tu nombre" maxlength="40" autocomplete="off">
+  </div>
   <div class="btn-hcp-row">
     <button class="btn-save"  onclick="saveCourse()">&#x1F4BE; Guardar Hcp</button>
     <button class="btn-reset" onclick="resetCourse()">&#x21A9; Restablecer Hcp</button>
@@ -346,6 +370,10 @@ input[type="number"] { -moz-appearance:textfield; }
       <div class="nc-holes-hdr-col"><span>Hoyo</span><span>Par</span><span>Hcp</span></div>
     </div>
     <div class="nc-holes-grid" id="nc-holes-grid"></div>
+    <div id="nc-autor-box" class="nc-autor-box">
+      <p class="nc-autor-warn" id="nc-autor-warn"></p>
+      <input type="text" id="nc-autor" placeholder="Tu nombre" maxlength="40" autocomplete="off">
+    </div>
     <div id="nc-toast" class="nc-toast"></div>
     <div class="nc-btn-row">
       <button class="nc-btn-ok" onclick="guardarNuevaCancha()">&#x2713; Guardar cancha</button>
@@ -447,7 +475,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20261008-001";
+const VERSION = "20261009-001";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -620,6 +648,10 @@ function strokeBg(stk) {
 function populateHcpTable() {
   const name  = document.getElementById('csel').value;
   const data  = COURSES[name];
+  const abox0 = document.getElementById('hcp-autor-box');
+  if (abox0) abox0.style.display = 'none';
+  const ainp0 = document.getElementById('hcp-autor');
+  if (ainp0) ainp0.value = '';
   const tbody0 = document.getElementById('hcp-rows');
   if (!data) { tbody0.innerHTML = ''; return; }
   const saved = JSON.parse(localStorage.getItem('lob_hcp_' + name) || 'null');
@@ -648,7 +680,20 @@ function saveCourse() {
     const val = el ? parseInt(el.value) : COURSES[name][h][1];
     hcps.push((!isNaN(val) && val >= 1 && val <= 18) ? val : COURSES[name][h][1]);
   }
+
+  const abox = document.getElementById('hcp-autor-box');
+  const aInput = document.getElementById('hcp-autor');
+  if (abox.style.display !== 'block') {
+    document.getElementById('hcp-autor-warn').textContent =
+      `Estás por modificar los datos de "${name}" para jugar ahora. Si querés que estos datos estén disponibles para el resto de los jugadores, poné tu nombre como autor, y presioná nuevamente "Guardar Hcp" y luego "Anotar".`;
+    abox.style.display = 'block';
+    aInput.focus();
+    return;
+  }
+  const autor = aInput.value.trim();
+
   localStorage.setItem('lob_hcp_' + name, JSON.stringify(hcps));
+  abox.style.display = 'none';
   const t = document.getElementById('save-toast');
   t.style.display = 'block';
   setTimeout(() => { t.style.display = 'none'; }, 2000);
@@ -664,10 +709,12 @@ function saveCourse() {
     body: JSON.stringify({
       _subject: `El Lobito - Modificación HCP: ${name}`,
       Cancha: name,
+      Autor: autor || '(sin nombre)',
       Jugadores: jugadores,
       HCP_modificados: hcpStr
     })
   }).catch(() => {});
+  aInput.value = '';
 }
 
 function resetCourse() {
@@ -745,6 +792,8 @@ function openNuevaCancha() {
     }
   }
   document.getElementById('nc-toast').textContent = '';
+  document.getElementById('nc-autor-box').style.display = 'none';
+  document.getElementById('nc-autor').value = '';
   document.getElementById('nc-overlay').classList.add('open');
 }
 
@@ -777,6 +826,18 @@ function guardarNuevaCancha() {
     const dups = [...new Set(hcps.filter((v,i,a)=>a.indexOf(v)!==i))].sort((a,b)=>a-b);
     ncToast(`⚠ HCP repetidos: ${dups.join(', ')}.`, false); return;
   }
+
+  const ncAbox = document.getElementById('nc-autor-box');
+  const ncAInput = document.getElementById('nc-autor');
+  if (ncAbox.style.display !== 'block') {
+    document.getElementById('nc-autor-warn').textContent =
+      `Estás por agregar los datos de "${nombre}" para jugar ahora. Si querés que estos datos estén disponibles para el resto de los jugadores, poné tu nombre como autor, y presioná nuevamente "Guardar cancha".`;
+    ncAbox.style.display = 'block';
+    ncAInput.focus();
+    return;
+  }
+  const ncAutor = ncAInput.value.trim();
+
   const courseData = hcps.map((hcp, i) => [pars[i], hcp]);
   COURSES[nombre] = courseData;
   const saved = JSON.parse(localStorage.getItem('custom_courses_lobito') || '[]');
@@ -798,6 +859,7 @@ function guardarNuevaCancha() {
     body: JSON.stringify({
       _subject: `El Lobito - Nueva cancha: ${nombre}`,
       Cancha: nombre,
+      Autor: ncAutor || '(sin nombre)',
       Ubicacion: ubicacion || '(no indicada)',
       Hoyos: hcps.map((hcp, i) => `H${i+1}: Par ${pars[i]} Hcp ${hcp}`).join(' | ')
     })
@@ -814,6 +876,8 @@ function guardarNuevaCancha() {
     ncToast('⚠ Cancha guardada. Mail no pudo enviarse.', false);
   })
   .finally(() => {
+    ncAbox.style.display = 'none';
+    ncAInput.value = '';
     setTimeout(() => {
       document.getElementById('nc-overlay').classList.remove('open');
       document.getElementById('csel').value = nombre;
