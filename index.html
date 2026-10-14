@@ -236,6 +236,23 @@ tr.rr-h19   td { background:#3a2800; color:#ffd700; font-weight:bold; border-top
 .m-ok     { background:#ffd700; color:#1a3a1a; }
 .m-cancel { background:#2d6a2d; color:#fff; }
 
+/* ── MODAL RESTAURAR ── */
+#modal-restore { display:none; position:fixed; inset:0; z-index:1100; background:rgba(0,0,0,0.92); justify-content:center; align-items:center; padding:20px; }
+#modal-restore.open { display:flex; }
+.restore-box { background:#0d3318; border:2px solid #ffd700; border-radius:14px; padding:24px 20px; max-width:400px; width:100%; text-align:center; }
+.restore-box h2 { color:#ffd700; font-size:18px; margin-bottom:8px; letter-spacing:.5px; }
+.restore-box .restore-sub { color:#a8d8a8; font-size:13px; margin-bottom:16px; }
+.restore-players { background:#1a472a; border-radius:8px; padding:12px 14px; margin-bottom:18px; text-align:left; font-size:13px; }
+.restore-players .rp-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid #2d6a2d; }
+.restore-players .rp-row:last-child { border-bottom:none; }
+.restore-players .rp-name { font-weight:bold; color:#e8ffe8; }
+.restore-players .rp-hcp  { color:#ffd700; font-size:12px; }
+.restore-btn-row { display:flex; gap:10px; }
+.btn-restore-continue { flex:1; padding:14px 10px; background:#1a4a1a; color:#90ee90; font-size:15px; font-weight:bold; border:2px solid #90ee90; border-radius:10px; cursor:pointer; touch-action:manipulation; line-height:1.3; }
+.btn-restore-continue:active { background:#2a6a2a; }
+.btn-restore-new { flex:1; padding:14px 10px; background:#4a1a1a; color:#f08080; font-size:15px; font-weight:bold; border:2px solid #f08080; border-radius:10px; cursor:pointer; touch-action:manipulation; line-height:1.3; }
+.btn-restore-new:active { background:#6a2a2a; }
+
 /* ── STICKY GRID HEADER ── */
 #sticky-grid-header { display:none; position:fixed; left:0; right:0; top:0; z-index:100; overflow:hidden; background:#0d3318; border-bottom:2px solid #3d8a3d; }
 #sticky-grid-header .sh-inner { overflow:hidden; }
@@ -475,8 +492,21 @@ input[type="number"] { -moz-appearance:textfield; }
   </div>
 </div>
 
+<!-- ── MODAL RESTAURAR PARTIDA ── -->
+<div id="modal-restore">
+  <div class="restore-box">
+    <h2>⚡ Partida en progreso</h2>
+    <div class="restore-sub">Hay una partida guardada. ¿Qué querés hacer?</div>
+    <div class="restore-players" id="restore-players-list"></div>
+    <div class="restore-btn-row">
+      <button class="btn-restore-continue" onclick="confirmRestore()">▶ Continuar<br><span style="font-size:11px;font-weight:normal">retomar la partida</span></button>
+      <button class="btn-restore-new" onclick="discardRestore()">✕ Nueva<br><span style="font-size:11px;font-weight:normal">borrar todo y empezar</span></button>
+    </div>
+  </div>
+</div>
+
 <script>
-const VERSION = "20261014-001";
+const VERSION = "20261014-002";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -601,6 +631,7 @@ let modalMode    = '';
 let isResuming   = false;
 
 const LS_KEY = 'ellobito2_state';
+let _pendingSavedState = null;   // partida guardada esperando "Continuar" o "Nueva"
 
 
 // ── STICKY HEADER GRID ────────────────────────────────────────────────────────
@@ -974,6 +1005,7 @@ function guardarNuevaCancha() {
 
 // ── Persistencia ─────────────────────────────────────────────────────────────
 function saveState() {
+  if (_pendingSavedState) return;   // el cartel "Partida en progreso" está abierto: no pisar lo guardado
   const screen = document.getElementById('results').style.display === 'block' ? 'results' :
                  document.getElementById('game').style.display    === 'block' ? 'game'    : 'setup';
   try { localStorage.setItem(LS_KEY, JSON.stringify({
@@ -987,12 +1019,44 @@ function saveState() {
 
 function clearState() { try { localStorage.removeItem(LS_KEY); } catch(e) {} }
 
+function partidaEnCurso(s) {
+  return s.screen === 'game' || s.screen === 'results' ||
+    (s.scores || []).some(r => r.some(v => v !== '')) || (s.teams || []).some(r => r.some(Boolean));
+}
+
+// Al abrir la app: si hay una partida en curso, preguntar si se continúa o se borra
 function loadState() {
+  let s;
+  try { s = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(e) { return; }
+  if (!s) return;
+  if (!partidaEnCurso(s)) { applyState(s); return; }
+  _pendingSavedState = s;
+  const list = document.getElementById('restore-players-list');
+  if (list) {
+    const cancha = s.courseKey || (s.courseName || '').replace(/^🐺 El Lobito — /, '');
+    const rows = (s.playerNames || []).map((n, i) =>
+      `<div class="rp-row"><span class="rp-name">J${i+1} · ${escHtml(n)}</span><span class="rp-hcp">HCP ${escHtml((s.playerHcps || [])[i] || 0)}</span></div>`
+    ).join('');
+    list.innerHTML = `<div style="color:#a8d8a8;font-size:11px;margin-bottom:6px;">${escHtml(cancha)}</div>` + rows;
+  }
+  document.getElementById('modal-restore').classList.add('open');
+}
+
+function confirmRestore() {
+  document.getElementById('modal-restore').classList.remove('open');
+  const s = _pendingSavedState;
+  _pendingSavedState = null;
+  if (s) applyState(s);
+}
+
+function discardRestore() {
+  document.getElementById('modal-restore').classList.remove('open');
+  _pendingSavedState = null;
+  resetGame();
+}
+
+function applyState(s) {
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return;
-    const s = JSON.parse(raw);
-    if (!s) return;
     playerNames  = (s.playerNames || playerNames).map((n, i) => (n === 'J'+(i+1)) ? '' : n);
     playerHcps   = s.playerHcps  || playerHcps;
     course       = s.course      || [];
@@ -1008,8 +1072,7 @@ function loadState() {
     }
     // Restaurar cancha seleccionada y HCP solo si hay partida en curso
     const csel = document.getElementById('csel');
-    const enCurso = s.screen === 'game' || s.screen === 'results' ||
-      (s.scores || []).some(r => r.some(v => v !== '')) || (s.teams || []).some(r => r.some(Boolean));
+    const enCurso = partidaEnCurso(s);
     if (enCurso && s.courseKey && COURSES[s.courseKey]) {
       csel.value = s.courseKey;
       populateHcpTable();
@@ -1523,6 +1586,10 @@ function regresar() {
 
 function newGame() {
   if (!confirm('¿Empezar una nueva partida?\nSe borra la tarjeta actual.')) return;
+  resetGame();
+}
+
+function resetGame() {
   isResuming = false;
   clearState();
   playerNames = ['','','','',''];
