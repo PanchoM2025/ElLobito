@@ -444,6 +444,7 @@ input[type="number"] { -moz-appearance:textfield; }
 
     <h3>Empate <span class="emp">⇒</span></h3>
     <p>Si hay empate en el hoyo, los <strong>6 puntos se acumulan</strong> para el siguiente. El multiplicador crece con cada empate consecutivo.</p>
+    <p style="font-size:12px;color:#a8d8a8">Lobito / Anti-Lobito con empates previos: se suman los 6 puntos de cada hoyo acumulado (12, 18, 24…). Cada uno de los 4 paga (o cobra) ese total ÷ 4 redondeado hacia abajo: 12→3, 18→4, 24→6, 30→7, 36→9, 42→10. El solitario cobra (o paga) 4 veces eso.</p>
 
     <h3>Empate general</h3>
     <p>Si el jugador con turno <strong>tilta todas las casillas</strong> (sin elegir a nadie como rival), es empate general: se acumulan puntos sin comparar scores.</p>
@@ -475,7 +476,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20261009-001";
+const VERSION = "20261014-001";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -545,13 +546,45 @@ const COURSES = {
     [4, 2],[4, 6],[4,18],[5,14],[3,16],[4, 4],[3,12],[5, 8],[4,10]
   ],
 };
+// Canchas de fábrica: no se pueden pisar ni borrar desde "Cancha nueva" / "Gestionar"
+const BUILTIN_COURSES = new Set(Object.keys(COURSES));
+function isBuiltinName(n) {
+  const k = String(n).trim().toLowerCase();
+  return [...BUILTIN_COURSES].some(b => b.toLowerCase() === k);
+}
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
+}
+function findOption(sel, value) {
+  return Array.from(sel.options).find(o => o.value === value) || null;
+}
+
+// Score válido: entero 1-15, o 'X' (levantó; también se acepta 0). Cualquier otra cosa → null
+function cleanScore(v) {
+  const t = String(v == null ? '' : v).trim();
+  if (t === '') return '';
+  if (/^[xX0]$/.test(t)) return 'X';
+  if (/^[1-9][0-9]?$/.test(t) && parseInt(t, 10) <= 15) return t;
+  return null;
+}
 
 
 // Puntos por hoyo según formación y acumulado
-// Lobito/Anti-lobito: pot = 12 + 6*acum (solo se duplica el hoyo actual)
 // Pareja/Trío:        pot = 6*(acum+1)   (multiplicador normal)
+// Lobito/Anti-lobito: el hoyo vale 6; sin empates previos el Lobito cobra el doble (+12 / −3 c/u).
+//   Con empates previos: total acumulado = 6*(acum+1) (12, 18, 24…). Cada uno de los 4 paga
+//   (o cobra) total/4 redondeado hacia abajo, y el solitario cobra (o paga) 4 veces eso → suma cero.
+//   Ej.: 12→3, 18→4, 24→6, 30→7, 36→9, 42→10.
 function holePts(numWin, acum) {
-  const pot = (numWin === 1 || numWin === 4) ? 12 + 6 * acum : 6 * (acum + 1);
+  if (numWin === 1 || numWin === 4) {
+    const cuarto = Math.floor(Math.max(12, 6 * (acum + 1)) / 4);
+    return numWin === 1
+      ? { win: 4 * cuarto, lose: -cuarto }
+      : { win: cuarto,     lose: -4 * cuarto };
+  }
+  const pot = 6 * (acum + 1);
   return {
     win:  Math.round(pot / numWin),
     lose: -Math.round(pot / (5 - numWin))
@@ -571,6 +604,7 @@ const LS_KEY = 'ellobito2_state';
 
 
 // ── STICKY HEADER GRID ────────────────────────────────────────────────────────
+let _stickyScrollHandler = null;
 function setupStickyGridHeader() {
   const old = document.getElementById('sticky-grid-header');
   if (old) old.remove();
@@ -623,10 +657,13 @@ function setupStickyGridHeader() {
       fixed.style.display = 'none';
     }
   }
-  window.addEventListener('scroll', () => {
+  // Un solo listener de scroll: se quita el de la tarjeta anterior
+  if (_stickyScrollHandler) window.removeEventListener('scroll', _stickyScrollHandler);
+  _stickyScrollHandler = () => {
     if (raf) cancelAnimationFrame(raf);
     raf = requestAnimationFrame(update);
-  }, { passive: true });
+  };
+  window.addEventListener('scroll', _stickyScrollHandler, { passive: true });
   wrap.addEventListener('scroll', () => {
     inner.scrollLeft = wrap.scrollLeft;
   }, { passive: true });
@@ -674,16 +711,21 @@ function populateHcpTable() {
 function saveCourse() {
   const name = document.getElementById('csel').value;
   if (!COURSES[name]) { alert('Seleccioná una cancha.'); return; }
+  const prevSaved = JSON.parse(localStorage.getItem('lob_hcp_' + name) || 'null');
   const hcps = [];
+  const modified = [];
   for (let h = 0; h < 18; h++) {
     const el  = document.getElementById(`hv${h}`);
     const val = el ? parseInt(el.value) : COURSES[name][h][1];
-    hcps.push((!isNaN(val) && val >= 1 && val <= 18) ? val : COURSES[name][h][1]);
+    const final = (!isNaN(val) && val >= 1 && val <= 18) ? val : COURSES[name][h][1];
+    hcps.push(final);
+    const prev = (prevSaved && prevSaved[h] != null) ? prevSaved[h] : COURSES[name][h][1];
+    if (final !== prev) modified.push(`H${h+1}: ${prev}→${final}`);
   }
 
   const abox = document.getElementById('hcp-autor-box');
   const aInput = document.getElementById('hcp-autor');
-  if (abox.style.display !== 'block') {
+  if (modified.length > 0 && abox.style.display !== 'block') {
     document.getElementById('hcp-autor-warn').textContent =
       `Estás por modificar los datos de "${name}" para jugar ahora. Si querés que estos datos estén disponibles para el resto de los jugadores, poné tu nombre como autor, y presioná nuevamente "Guardar Hcp" y luego "Anotar".`;
     abox.style.display = 'block';
@@ -697,6 +739,8 @@ function saveCourse() {
   const t = document.getElementById('save-toast');
   t.style.display = 'block';
   setTimeout(() => { t.style.display = 'none'; }, 2000);
+  // Sin cambios en los HCP: no se manda mail
+  if (modified.length === 0) { aInput.value = ''; return; }
   const jugadores = [0,1,2,3,4].map(i => {
     const n = document.getElementById(`pn${i}`)?.value || `J${i+1}`;
     const h = document.getElementById(`ph${i}`)?.value || '?';
@@ -711,7 +755,8 @@ function saveCourse() {
       Cancha: name,
       Autor: autor || '(sin nombre)',
       Jugadores: jugadores,
-      HCP_modificados: hcpStr
+      HCP_modificados: hcpStr,
+      Cambios: modified.join('; ')
     })
   }).catch(() => {});
   aInput.value = '';
@@ -756,7 +801,7 @@ function renderGcLista() {
   }
   lista.innerHTML = saved.map((c, i) =>
     `<div class="gc-item">
-      <span class="gc-item-name">${c.name}</span>
+      <span class="gc-item-name">${escHtml(c.name)}</span>
       <button class="gc-btn-del" onclick="gcBorrar(${i})">✕ Borrar</button>
     </div>`
   ).join('');
@@ -767,11 +812,13 @@ function gcBorrar(i) {
   const nombre = saved[i].name;
   saved.splice(i, 1);
   localStorage.setItem('custom_courses_lobito', JSON.stringify(saved));
-  // Quitar del COURSES y del select
-  delete COURSES[nombre];
-  const sel = document.getElementById('csel');
-  const opt = sel.querySelector(`option[value="${nombre}"]`);
-  if (opt) sel.removeChild(opt);
+  // Quitar del COURSES y del select (una cancha de fábrica con el mismo nombre se conserva)
+  if (!BUILTIN_COURSES.has(nombre)) {
+    delete COURSES[nombre];
+    const sel = document.getElementById('csel');
+    const opt = findOption(sel, nombre);
+    if (opt) sel.removeChild(opt);
+  }
   document.getElementById('gc-msg').textContent = `✅ "${nombre}" borrada.`;
   renderGcLista();
 }
@@ -813,6 +860,9 @@ function guardarNuevaCancha() {
   const nombre = document.getElementById('nc-nombre').value.trim();
   const ubicacion = document.getElementById('nc-ubicacion').value.trim();
   if (!nombre) { ncToast('⚠ Ingresá el nombre de la cancha.', false); return; }
+  if (nombre.startsWith('__') || isBuiltinName(nombre)) {
+    ncToast(`⚠ "${nombre}" ya está en la lista. Elegila desde el selector o usá otro nombre.`, false); return;
+  }
   const pars = [], hcps = [];
   for (let h = 1; h <= 18; h++) {
     const par = parseInt(document.getElementById(`nc-par${h}`).value);
@@ -846,10 +896,10 @@ function guardarNuevaCancha() {
   if (idx >= 0) saved[idx] = entry; else saved.push(entry);
   localStorage.setItem('custom_courses_lobito', JSON.stringify(saved));
   const sel = document.getElementById('csel');
-  if (!sel.querySelector(`option[value="${nombre}"]`)) {
+  if (!findOption(sel, nombre)) {
     const opt = document.createElement('option');
     opt.value = opt.textContent = nombre;
-    sel.insertBefore(opt, sel.querySelector('option[value="__nueva__"]'));
+    sel.insertBefore(opt, findOption(sel, '__nueva__'));
   }
   sel.value = nombre;
   ncToast('✅ ¡Cancha guardada! Enviando mail…', true);
@@ -947,7 +997,8 @@ function loadState() {
     playerHcps   = s.playerHcps  || playerHcps;
     course       = s.course      || [];
     precioUnidad = s.precioUnidad || 0;
-    scores = s.scores || Array.from({length:18}, () => Array(5).fill(''));
+    scores = (s.scores || Array.from({length:18}, () => Array(5).fill('')))
+      .map(r => r.map(v => cleanScore(v) || ''));
     teams  = s.teams  || Array.from({length:18}, () => Array(5).fill(false));
     for (let i = 0; i < 5; i++) {
       const en = document.getElementById('pn'+i);
@@ -979,6 +1030,7 @@ function loadState() {
     } else if (s.screen === 'results' && precioUnidad > 0) {
       if (s.courseName) document.getElementById('game-title').textContent = s.courseName;
       buildGrid();
+      document.getElementById('setup').style.display = 'none';
       buildResults(precioUnidad);
     } else if (s.screen === 'results') {
       if (s.courseName) document.getElementById('game-title').textContent = s.courseName;
@@ -1034,7 +1086,7 @@ function buildGrid() {
   const thead = document.createElement('thead');
   let thHtml = '<tr><th class="hdr-h">H</th><th class="hdr-par">Par</th><th class="hdr-hcp">Hcp</th>';
   playerNames.forEach((n, i) => {
-    thHtml += `<th class="hdr-p">${n}<br><span style="color:#ffd700;font-size:9px">H${playerHcps[i]}</span></th>`;
+    thHtml += `<th class="hdr-p">${escHtml(n)}<br><span style="color:#ffd700;font-size:9px">H${playerHcps[i]}</span></th>`;
   });
   thHtml += '<th class="hdr-i"></th></tr>';
   thead.innerHTML = thHtml;
@@ -1056,7 +1108,7 @@ function buildGrid() {
       html +=
         `<td class="pc"><div class="pc-in">` +
         `<input class="sci" type="text" inputmode="numeric" id="si_${h}_${p}"` +
-        ` value="${scores[h][p]}" style="background:${bg}"` +
+        ` value="${escHtml(scores[h][p])}" style="background:${bg}"` +
         ` onchange="onScore(${h},${p},this.value)">` +
         `<button class="chk ${on?'on':'off'}" id="cb_${h}_${p}"` +
         ` onclick="toggleTeam(${h},${p})">${on?'✓':''}</button>` +
@@ -1109,7 +1161,7 @@ function buildCtrlTable() {
   tbl.innerHTML = '';
   const thead = document.createElement('thead');
   let th = '<tr><th style="width:22px">H</th>';
-  playerNames.forEach((n,i) => th += `<th>${n}<br><span style="color:#ffd700;font-size:9px">H${playerHcps[i]}</span></th>`);
+  playerNames.forEach((n,i) => th += `<th>${escHtml(n)}<br><span style="color:#ffd700;font-size:9px">H${playerHcps[i]}</span></th>`);
   th += '</tr>';
   thead.innerHTML = th;
   tbl.appendChild(thead);
@@ -1133,7 +1185,19 @@ function buildCtrlTable() {
 
 // ── Score / team input handlers ───────────────────────────────────────────────
 function onScore(h, p, val) {
-  scores[h][p] = val.trim().toUpperCase();
+  const v = cleanScore(val);
+  const el = document.getElementById(`si_${h}_${p}`);
+  if (v === null) {
+    // Valor inválido (ej. 16, 4.5, letras): vuelve al anterior y marca la casilla
+    if (el) {
+      el.value = scores[h][p];
+      el.style.outline = '2px solid #ff3b30';
+      setTimeout(() => { el.style.outline = ''; }, 600);
+    }
+    return;
+  }
+  scores[h][p] = v;
+  if (el) el.value = v;
   recalcAll();
   saveState();
 }
@@ -1325,7 +1389,7 @@ function buildResults(precio) {
   tbl.innerHTML = '';
 
   let thHtml = '<thead><tr><th>H</th>';
-  playerNames.forEach(n => thHtml += `<th>${n}</th>`);
+  playerNames.forEach(n => thHtml += `<th>${escHtml(n)}</th>`);
   thHtml += '</tr></thead>';
   tbl.innerHTML = thHtml;
 
@@ -1391,7 +1455,7 @@ function buildH19(monto) {
   const pagos = diffs.map(d => d > 0 ? Math.round(monto * d / sumDiffs) : 0);
   const tbl = document.getElementById('h19-tbl');
   let html = '<thead><tr><th>Concepto</th>';
-  playerNames.forEach(n => html += `<th>${n}</th>`);
+  playerNames.forEach(n => html += `<th>${escHtml(n)}</th>`);
   html += '</tr></thead><tbody>';
   html += '<tr class="rr-even"><td style="color:#a8d8a8;font-size:12px">Pts</td>';
   totals.forEach(v => {
