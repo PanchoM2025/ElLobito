@@ -194,6 +194,9 @@ table.ctrl th { background:#0d3318; color:#a8d8a8; padding:5px 2px; text-align:c
 table.ctrl td { padding:4px 2px; text-align:center; vertical-align:middle; }
 tr.cr-even  td { background:#245c38; }
 tr.cr-odd   td { background:#1a472a; }
+tr.cr-acc   td { background:#0f3a1f; color:#ffd700; font-size:10px; font-style:italic; padding:2px; border-bottom:1px solid #3d8a3d; }
+tr.cr-acc   td.cv-pos { color:#90ee90; }
+tr.cr-acc   td.cv-neg { color:#ff7777; }
 tr.cr-total td { background:#0d3318; color:#ffd700; font-weight:bold; font-size:13px; padding:7px 2px; border-top:2px solid #3d8a3d; }
 .cv-pos { color:#90ee90; font-weight:bold; }
 .cv-neg { color:#ff7777; font-weight:bold; }
@@ -506,7 +509,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20261014-002";
+const VERSION = "20261014-003";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -1236,6 +1239,15 @@ function buildCtrlTable() {
     for (let p = 0; p < 5; p++) html += `<td id="ctrl_${h}_${p}">—</td>`;
     tr.innerHTML = html;
     tbody.appendChild(tr);
+    // Fila intercalada: acumulado de cada jugador hasta este hoyo (visible solo si el hoyo tiene resultado)
+    const trAcc = document.createElement('tr');
+    trAcc.className = 'cr-acc';
+    trAcc.id = `ctrlacc_${h}`;
+    trAcc.style.display = 'none';
+    let accHtml = '<td style="font-size:9px">Ac.</td>';
+    for (let p = 0; p < 5; p++) accHtml += `<td id="ctrlacc_${h}_${p}"></td>`;
+    trAcc.innerHTML = accHtml;
+    tbody.appendChild(trAcc);
   }
   const trTot = document.createElement('tr');
   trTot.className = 'cr-total';
@@ -1379,6 +1391,7 @@ function recalcAll() {
   }
 
   // ── Update Control Scores table — resultado parcial por hoyo ───────────
+  const runTot = [0,0,0,0,0];
   for (let h = 0; h < 18; h++) {
     for (let p = 0; p < 5; p++) {
       const el = document.getElementById(`ctrl_${h}_${p}`);
@@ -1387,6 +1400,20 @@ function recalcAll() {
       if (v === null)  { el.textContent='—'; el.className=''; }
       else if (v === 0){ el.textContent='='; el.className=''; }
       else { el.textContent = v>0?'+'+v:String(v); el.className = v>0?'cv-pos':v<0?'cv-neg':''; }
+    }
+    // Fila de acumulado debajo del hoyo
+    const hasRes = lobHole[h][0] !== null;
+    for (let p = 0; p < 5; p++) runTot[p] += lobHole[h][p] || 0;
+    const trAcc = document.getElementById(`ctrlacc_${h}`);
+    if (trAcc) trAcc.style.display = hasRes ? '' : 'none';
+    if (hasRes) {
+      for (let p = 0; p < 5; p++) {
+        const el = document.getElementById(`ctrlacc_${h}_${p}`);
+        if (!el) continue;
+        const v = runTot[p];
+        el.textContent = v>0?'+'+v:String(v);
+        el.className   = v>0?'cv-pos':v<0?'cv-neg':'';
+      }
     }
   }
   for (let p = 0; p < 5; p++) {
