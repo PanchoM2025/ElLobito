@@ -509,7 +509,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20261014-003";
+const VERSION = "20261024-001";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -632,6 +632,8 @@ let teams        = Array.from({length:18}, () => Array(5).fill(false));
 let precioUnidad = 0;
 let modalMode    = '';
 let isResuming   = false;
+let _prevNames     = null;   // jugadores de la partida al presionar Regresar
+let _prevCourseKey = null;   // cancha de la partida al presionar Regresar
 
 const LS_KEY = 'ellobito2_state';
 let _pendingSavedState = null;   // partida guardada esperando "Continuar" o "Nueva"
@@ -1062,6 +1064,8 @@ function applyState(s) {
   try {
     playerNames  = (s.playerNames || playerNames).map((n, i) => (n === 'J'+(i+1)) ? '' : n);
     playerHcps   = s.playerHcps  || playerHcps;
+    _prevNames     = playerNames.slice();
+    _prevCourseKey = s.courseKey || null;
     course       = s.course      || [];
     precioUnidad = s.precioUnidad || 0;
     scores = (s.scores || Array.from({length:18}, () => Array(5).fill('')))
@@ -1129,6 +1133,26 @@ function startGame() {
     const hv = parseInt(document.getElementById(`hv${h}`).value);
     return [par, isNaN(hv)||hv<1||hv>18 ? base[h][1] : hv];
   });
+  if (isResuming && _prevNames) {
+    const hayDatos = scores.some(r => r.some(v => v !== '')) || teams.some(r => r.some(Boolean));
+    const cambioCancha = name !== _prevCourseKey;
+    const algunoIgual = playerNames.some(n => n && _prevNames.includes(n));
+    if (hayDatos && (cambioCancha || !algunoIgual) &&
+        !confirm('Cambiaste la cancha o los jugadores.\n¿Querés conservar los scores que ya estaban cargados?\n\nAceptar = conservar · Cancelar = tarjeta vacía')) {
+      isResuming = false;
+    } else if (hayDatos) {
+      // Cada jugador recupera su columna por nombre; si cambió el nombre, por posición
+      const used = new Set();
+      const map = playerNames.map((n, j) => {
+        let k = n ? _prevNames.findIndex((m, i) => !used.has(i) && m === n) : -1;
+        if (k < 0 && !used.has(j) && !(_prevNames[j] && playerNames.includes(_prevNames[j]))) k = j;
+        if (k >= 0) used.add(k);
+        return k;
+      });
+      scores = scores.map(r => map.map(k => k >= 0 ? r[k] : ''));
+      teams  = teams.map(r => map.map(k => k >= 0 ? r[k] : false));
+    }
+  }
   if (!isResuming) {
     scores = Array.from({length:18}, () => Array(5).fill(''));
     teams  = Array.from({length:18}, () => Array(5).fill(false));
@@ -1604,6 +1628,8 @@ function showGame() {
 
 function regresar() {
   isResuming = true;
+  _prevNames     = playerNames.slice();
+  _prevCourseKey = document.getElementById('csel').value;
   document.getElementById('results').style.display = 'none';
   document.getElementById('game').style.display    = 'none';
   document.getElementById('setup').style.display   = 'block';
