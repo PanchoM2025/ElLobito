@@ -25,9 +25,7 @@
 <script>
 // ── Service Worker inline (PWA) ──────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  const swCode = `self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',e=>e.respondWith(fetch(e.request)));`;
-  const swBlob = new Blob([swCode], {type: 'application/javascript'});
-  navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 // ── Wake Lock (evita que se apague la pantalla) ──────────────────────────────
@@ -239,6 +237,17 @@ tr.rr-h19   td { background:#3a2800; color:#ffd700; font-weight:bold; border-top
 .m-ok     { background:#ffd700; color:#1a3a1a; }
 .m-cancel { background:#2d6a2d; color:#fff; }
 
+/* ── AVISO IPHONE ── */
+#ios-warn {
+  display:none; background:#5a3a00; border:2px solid #ffd700; border-radius:10px;
+  color:#fff; font-size:13px; line-height:1.4; padding:12px 14px; margin:0 0 16px; text-align:left;
+}
+#ios-warn b { color:#ffd700; }
+#ios-warn button {
+  margin-top:10px; width:100%; padding:8px; border:none; border-radius:8px;
+  background:#ffd700; color:#1a3a1a; font-weight:bold; font-size:14px;
+}
+
 /* ── MODAL RESTAURAR ── */
 #modal-restore { display:none; position:fixed; inset:0; z-index:1100; background:rgba(0,0,0,0.92); justify-content:center; align-items:center; padding:20px; }
 #modal-restore.open { display:flex; }
@@ -334,6 +343,13 @@ input[type="number"] { -moz-appearance:textfield; }
 
 <!-- ── SETUP ── -->
 <div id="setup">
+  <div id="ios-warn">
+    <b>📱 iPhone: para no perder la partida</b><br>
+    Abrí la app siempre desde el <b>ícono en la pantalla de inicio</b>.<br>
+    Si no lo tenés: en Safari tocá <b>Compartir ⬆</b> → <b>Agregar a inicio</b>.<br>
+    Si la abrís desde WhatsApp, desde otro navegador o en <b>navegación privada</b>, el iPhone guarda la partida en otro lado y al volver a abrirla no aparece.
+    <button onclick="closeIosWarn()">Entendido</button>
+  </div>
   <h1 id="main-title">🐺 El Lobito</h1>
   <div class="field-row">
     <label for="csel">Cancha:</label>
@@ -509,7 +525,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20261024-001";
+const VERSION = "20261106-001";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -1006,7 +1022,37 @@ function guardarNuevaCancha() {
   csel.value = '';
   populateHcpTable();
   loadState();
+  setupStorageSafety();
 })();
+
+// ── Protección del guardado (sobre todo iPhone) ─────────────────────────────
+// En iPhone cada lugar desde donde se abre la app (ícono de inicio, Safari,
+// navegador de WhatsApp, navegación privada) guarda la partida por separado.
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function isStandaloneApp() {
+  return window.navigator.standalone === true ||
+         (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+
+function setupStorageSafety() {
+  // Pedir que el teléfono no borre los datos de la app por falta de espacio
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch(e) {}
+  // Aviso en iPhone cuando NO se abrió desde el ícono de inicio
+  try {
+    if (isIOSDevice() && !isStandaloneApp() && !sessionStorage.getItem('ios_warn_ok')) {
+      document.getElementById('ios-warn').style.display = 'block';
+    }
+  } catch(e) {}
+}
+
+function closeIosWarn() {
+  document.getElementById('ios-warn').style.display = 'none';
+  try { sessionStorage.setItem('ios_warn_ok', '1'); } catch(e) {}
+}
 
 // ── Persistencia ─────────────────────────────────────────────────────────────
 function saveState() {
