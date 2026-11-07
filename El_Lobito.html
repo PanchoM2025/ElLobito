@@ -269,6 +269,7 @@ tr.rr-h19   td { background:#3a2800; color:#ffd700; font-weight:bold; border-top
 .btn-restore-continue:active { background:#2a6a2a; }
 .btn-restore-new { flex:1; padding:14px 10px; background:#4a1a1a; color:#f08080; font-size:15px; font-weight:bold; border:2px solid #f08080; border-radius:10px; cursor:pointer; touch-action:manipulation; line-height:1.3; }
 .btn-restore-new:active { background:#6a2a2a; }
+#btn-prev { display:none; width:100%; margin-top:10px; padding:10px; background:transparent; color:#a8d8a8; border:1px dashed #a8d8a8; border-radius:8px; font-size:13px; cursor:pointer; }
 
 /* ── STICKY GRID HEADER ── */
 #sticky-grid-header { display:none; position:fixed; left:0; right:0; top:0; z-index:100; overflow:hidden; background:#0d3318; border-bottom:2px solid #3d8a3d; }
@@ -381,6 +382,7 @@ input[type="number"] { -moz-appearance:textfield; }
   </div>
   <div id="save-toast">&#x2705; Guardado</div>
   <button class="btn-start" onclick="startGame()">ANOTAR &nbsp;&#9658;</button>
+  <button id="btn-prev" onclick="recoverPrev()">&#x21BA; Recuperar la partida anterior</button>
   <button class="btn-rules-setup" onclick="openRules()">📋 Reglas del juego</button>
 </div>
 
@@ -524,13 +526,13 @@ input[type="number"] { -moz-appearance:textfield; }
     <div class="restore-players" id="restore-players-list"></div>
     <div class="restore-btn-row">
       <button class="btn-restore-continue" onclick="confirmRestore()">▶ Continuar<br><span style="font-size:11px;font-weight:normal">retomar la partida</span></button>
-      <button class="btn-restore-new" onclick="discardRestore()">✕ Nueva<br><span style="font-size:11px;font-weight:normal">borrar todo y empezar</span></button>
+      <button class="btn-restore-new" onclick="discardRestore()">✕ Nueva<br><span style="font-size:11px;font-weight:normal">empezar otra</span></button>
     </div>
   </div>
 </div>
 
 <script>
-const VERSION = "20261107-003";
+const VERSION = "20261107-004";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -658,6 +660,8 @@ let _prevCourseKey = null;   // cancha de la partida al presionar Regresar
 
 const LS_KEY = 'ellobito2_state';
 let _pendingSavedState = null;   // partida guardada esperando "Continuar" o "Nueva"
+const PREV_KEY = 'ellobito2_prev';   // copia de la partida anterior (para "Recuperar")
+let _fresh = false;   // tocó "Nueva": no guardar la pantalla vacía encima de la partida hasta ANOTAR
 
 
 // ── STICKY HEADER GRID ────────────────────────────────────────────────────────
@@ -1027,6 +1031,7 @@ function guardarNuevaCancha() {
   csel.value = '';
   populateHcpTable();
   loadState();
+  updatePrevBtn();
   setupStorageSafety();
 })();
 
@@ -1062,6 +1067,7 @@ function closeIosWarn() {
 // ── Persistencia ─────────────────────────────────────────────────────────────
 function saveState() {
   if (_pendingSavedState) return;   // el cartel "Partida en progreso" está abierto: no pisar lo guardado
+  if (_fresh) return;               // tocó "Nueva" y todavía no empezó otra: lo guardado queda
   const screen = document.getElementById('results').style.display === 'block' ? 'results' :
                  document.getElementById('game').style.display    === 'block' ? 'game'    : 'setup';
   try { localStorage.setItem(LS_KEY, JSON.stringify({
@@ -1073,7 +1079,41 @@ function saveState() {
   })); } catch(e) {}
 }
 
-function clearState() { try { localStorage.removeItem(LS_KEY); } catch(e) {} }
+function readSaved(key) {
+  try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { return null; }
+}
+function savedHasScores(s) {
+  return !!(s && ((s.scores || []).some(r => r.some(v => v !== '')) || (s.teams || []).some(r => r.some(Boolean))));
+}
+// Copia la partida guardada a "anterior" (si tiene scores)
+function backupCurrent() {
+  const cur = readSaved(LS_KEY);
+  try { if (savedHasScores(cur)) localStorage.setItem(PREV_KEY, JSON.stringify(cur)); } catch(e) {}
+}
+// Muestra "Recuperar la partida anterior" si hay una copia con scores
+function updatePrevBtn() {
+  const b = document.getElementById('btn-prev');
+  if (b) b.style.display = savedHasScores(readSaved(PREV_KEY)) ? 'block' : 'none';
+}
+// Vuelve a la partida anterior. La partida actual pasa a ser la "anterior", así no se pierde ninguna.
+function recoverPrev() {
+  const prev = readSaved(PREV_KEY);
+  if (!savedHasScores(prev)) { updatePrevBtn(); return; }
+  const cancha = prev.courseKey || (prev.courseName || '').replace(/^🐺 El Lobito — /, '');
+  const quienes = (prev.playerNames || []).filter(Boolean).join(', ');
+  if (!confirm('¿Recuperar la partida anterior?\n\n' + cancha + '\n' + quienes)) return;
+  const cur = readSaved(LS_KEY);
+  try {
+    if (savedHasScores(cur)) localStorage.setItem(PREV_KEY, JSON.stringify(cur));
+    else localStorage.removeItem(PREV_KEY);
+    localStorage.setItem(LS_KEY, JSON.stringify(prev));
+  } catch(e) {}
+  _fresh = false;
+  _pendingSavedState = null;
+  applyState(prev);
+  saveState();
+  updatePrevBtn();
+}
 
 function partidaEnCurso(s) {
   return s.screen === 'game' || s.screen === 'results' ||
@@ -1108,6 +1148,7 @@ function confirmRestore() {
 function discardRestore() {
   document.getElementById('modal-restore').classList.remove('open');
   _pendingSavedState = null;
+  backupCurrent();
   resetGame();
 }
 
@@ -1205,6 +1246,7 @@ function startGame() {
     }
   }
   if (!isResuming) {
+    backupCurrent();   // partida nueva: la que estaba guardada pasa a "anterior"
     scores = Array.from({length:18}, () => Array(5).fill(''));
     teams  = Array.from({length:18}, () => Array(5).fill(false));
     precioUnidad = 0;
@@ -1215,7 +1257,9 @@ function startGame() {
   document.getElementById('setup').style.display   = 'none';
   document.getElementById('game').style.display    = 'block';
   document.getElementById('results').style.display = 'none';
+  _fresh = false;
   saveState();
+  updatePrevBtn();
 }
 
 // ── Grid ─────────────────────────────────────────────────────────────────────
@@ -1540,6 +1584,7 @@ function recalcAll() {
 
 function limpiar() {
   if (!confirm('¿Limpiar toda la tarjeta?')) return;
+  backupCurrent();   // se puede recuperar con "Recuperar la partida anterior"
   scores = Array.from({length:18}, () => Array(5).fill(''));
   teams  = Array.from({length:18}, () => Array(5).fill(false));
   buildGrid();
@@ -1717,13 +1762,15 @@ function regresar() {
 }
 
 function newGame() {
-  if (!confirm('¿Empezar una nueva partida?\nSe borra la tarjeta actual.')) return;
+  if (!confirm('¿Empezar una nueva partida?\n\nLa tarjeta actual queda guardada hasta que toques ANOTAR, y después se puede recuperar con "Recuperar la partida anterior".')) return;
+  backupCurrent();
   resetGame();
 }
 
 function resetGame() {
   isResuming = false;
-  clearState();
+  // No se borra lo guardado: se reemplaza recién al tocar ANOTAR con la partida nueva
+  _fresh = true;
   playerNames = ['','','','',''];
   playerHcps  = [0,0,0,0,0];
   for (let i = 0; i < 5; i++) {
@@ -1741,6 +1788,7 @@ function resetGame() {
   course = [];
   document.getElementById('csel').value = '';
   populateHcpTable();
+  updatePrevBtn();
   window.scrollTo(0, 0);
 }
 </script>
