@@ -384,6 +384,8 @@ input[type="number"] { -moz-appearance:textfield; }
   <button class="btn-start" onclick="startGame()">ANOTAR &nbsp;&#9658;</button>
   <button id="btn-prev" onclick="recoverPrev()">&#x21BA; Recuperar la partida anterior</button>
   <button class="btn-rules-setup" onclick="openRules()">📋 Reglas del juego</button>
+  <div id="ver-foot" style="text-align:center;color:#888;font-size:11px;margin-top:18px;opacity:.8;"></div>
+  <script>document.addEventListener('DOMContentLoaded', () => { const v = document.getElementById('ver-foot'); if (v) v.textContent = 'Versión ' + VERSION; });</script>
 </div>
 
 <!-- ── GESTIONAR CANCHAS ── -->
@@ -532,7 +534,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20261107-004";
+const VERSION = "20261107-005";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
