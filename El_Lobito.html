@@ -530,7 +530,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20261107-002";
+const VERSION = "20261107-003";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -1020,8 +1020,8 @@ function guardarNuevaCancha() {
     const tr = document.createElement('tr');
     tr.innerHTML =
       `<td>Jugador ${i+1}</td>` +
-      `<td><input class="ini" type="text" id="pn${i}" maxlength="4" autocorrect="off" autocapitalize="characters"></td>` +
-      `<td><input class="hcp-in" type="number" id="ph${i}" placeholder="0" min="0" max="54" inputmode="numeric"></td>`;
+      `<td><input class="ini" type="text" id="pn${i}" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"></td>` +
+      `<td><input class="hcp-in" type="number" id="ph${i}" placeholder="0" min="0" max="54" inputmode="numeric" autocomplete="off"></td>`;
     tbody.appendChild(tr);
   }
   csel.value = '';
