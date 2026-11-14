@@ -534,7 +534,7 @@ input[type="number"] { -moz-appearance:textfield; }
 </div>
 
 <script>
-const VERSION = "20261107-006";
+const VERSION = "20261113-001";
 // Actualiza manifest href con la versión para forzar reload de iconos al bumpar VERSION
 document.getElementById('manifest-link').href = 'manifest.json?v=' + VERSION;
 
@@ -664,6 +664,35 @@ const LS_KEY = 'ellobito2_state';
 let _pendingSavedState = null;   // partida guardada esperando "Continuar" o "Nueva"
 const PREV_KEY = 'ellobito2_prev';   // copia de la partida anterior (para "Recuperar")
 let _fresh = false;   // tocó "Nueva": no guardar la pantalla vacía encima de la partida hasta ANOTAR
+
+// ── Misma partida: no dejar como "anterior" una copia de la partida que se está jugando ──
+let _gameId = null;   // número único de cada partida (se crea al empezar una nueva)
+function newGameId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function canchaDe(s) { return s.courseKey || (s.courseName || '').replace(/^🐺 El Lobito — /, ''); }
+function scoresPorJugador(s) {
+  const m = {};
+  (s.scores || []).forEach((r, h) => (r || []).forEach((v, j) => {
+    if (v !== '' && v != null) m[((s.playerNames || [])[j] || ('J' + (j + 1))) + '|' + h] = String(v);
+  }));
+  return m;
+}
+// true si "b" es la misma partida que "a" (o la continuación)
+function mismaPartida(a, b) {
+  if (!a || !b) return false;
+  if (a.gameId && b.gameId) return a.gameId === b.gameId;
+  // Partidas guardadas antes de tener número: misma cancha, mismos jugadores
+  // y todos los scores de "a" iguales en "b"
+  if (canchaDe(a) !== canchaDe(b)) return false;
+  const na = (a.playerNames || []).slice().sort().join(','), nb = (b.playerNames || []).slice().sort().join(',');
+  if (na !== nb) return false;
+  const sa = scoresPorJugador(a), sb = scoresPorJugador(b);
+  const ks = Object.keys(sa);
+  return ks.length > 0 && ks.every(k => sb[k] === sa[k]);
+}
+// Si la "anterior" es la misma partida que se acaba de abrir, se borra (no sirve recuperarla)
+function dropPrevIfSame(s) {
+  try { if (mismaPartida(readSaved(PREV_KEY), s)) localStorage.removeItem(PREV_KEY); } catch(e) {}
+}
 
 
 // ── STICKY HEADER GRID ────────────────────────────────────────────────────────
@@ -1077,7 +1106,8 @@ function saveState() {
     courseName: document.getElementById('game-title').textContent,
     scores, teams, precioUnidad, screen,
     courseKey: document.getElementById('csel').value,
-    isResuming
+    isResuming,
+    gameId: _gameId || (_gameId = newGameId())
   })); } catch(e) {}
 }
 
@@ -1113,6 +1143,7 @@ function recoverPrev() {
   _fresh = false;
   _pendingSavedState = null;
   applyState(prev);
+  dropPrevIfSame(prev);   // si era la misma partida, la copia vieja ya no hace falta
   saveState();
   updatePrevBtn();
 }
@@ -1144,7 +1175,11 @@ function confirmRestore() {
   document.getElementById('modal-restore').classList.remove('open');
   const s = _pendingSavedState;
   _pendingSavedState = null;
-  if (s) applyState(s);
+  if (s) {
+    applyState(s);
+    dropPrevIfSame(s);   // volvió a la misma partida: la copia vieja ya no hace falta
+    updatePrevBtn();
+  }
 }
 
 function discardRestore() {
@@ -1160,6 +1195,7 @@ function applyState(s) {
     playerHcps   = s.playerHcps  || playerHcps;
     _prevNames     = playerNames.slice();
     _prevCourseKey = s.courseKey || null;
+    _gameId = s.gameId || newGameId();
     course       = s.course      || [];
     precioUnidad = s.precioUnidad || 0;
     scores = (s.scores || Array.from({length:18}, () => Array(5).fill('')))
@@ -1249,6 +1285,7 @@ function startGame() {
   }
   if (!isResuming) {
     backupCurrent();   // partida nueva: la que estaba guardada pasa a "anterior"
+    _gameId = newGameId();
     scores = Array.from({length:18}, () => Array(5).fill(''));
     teams  = Array.from({length:18}, () => Array(5).fill(false));
     precioUnidad = 0;
@@ -1587,6 +1624,7 @@ function recalcAll() {
 function limpiar() {
   if (!confirm('¿Limpiar toda la tarjeta?')) return;
   backupCurrent();   // se puede recuperar con "Recuperar la partida anterior"
+  _gameId = newGameId();   // la tarjeta limpia cuenta como otra partida
   scores = Array.from({length:18}, () => Array(5).fill(''));
   teams  = Array.from({length:18}, () => Array(5).fill(false));
   buildGrid();
